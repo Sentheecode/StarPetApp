@@ -1,7 +1,7 @@
 {
-  "version": "1.0.8",
-  "versionCode": 8,
-  "releaseNote": "修复OTA版本检测问题",
+  "version": "1.0.9",
+  "versionCode": 9,
+  "releaseNote": "主题设置增加保存按钮，优化用户体验",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
