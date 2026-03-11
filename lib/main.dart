@@ -55,16 +55,21 @@ class DataManager {
   }
   
   static Map<String, dynamic> getUserData() => _userData;
-  static void setNickname(String name) { _userData['nickname'] = name; _saveData(); }
-  static void setRoles(List<String> roles) { _userData['roles'] = roles; _saveData(); }
+  static Future<void> setNickname(String name) async { _userData['nickname'] = name; await _saveData(); }
+  static Future<void> setRoles(List<String> roles) async { _userData['roles'] = roles; await _saveData(); }
   static String getNickname() => _userData['nickname'] ?? '点击编辑昵称';
   static List<String> getRoles() => List<String>.from(_userData['roles'] ?? []);
   static List<Map<String, dynamic>> getPets() => _petsData;
   static List<Map<String, dynamic>> getPosts() => _postsData;
-  static void addPet(Map<String, dynamic> pet) { _petsData.add(pet); _saveData(); }
-  static void updatePet(int index, Map<String, dynamic> pet) { if (index >= 0 && index < _petsData.length) { _petsData[index] = pet; _saveData(); } }
-  static void deletePet(int index) { if (index >= 0 && index < _petsData.length) { _petsData.removeAt(index); _saveData(); } }
+  static Future<void> addPet(Map<String, dynamic> pet) async { _petsData.add(pet); await _saveData(); }
+  static Future<void> updatePet(int index, Map<String, dynamic> pet) async { if (index >= 0 && index < _petsData.length) { _petsData[index] = pet; await _saveData(); } }
+  static Future<void> deletePet(int index) async { if (index >= 0 && index < _petsData.length) { _petsData.removeAt(index); await _saveData(); } }
   static void addPost(Map<String, dynamic> post) => _postsData.insert(0, post);
+  
+  // 同步保存到本地
+  static Future<void> saveAll() async {
+    await _saveData();
+  }
 }
 
 void main() async {
@@ -1375,9 +1380,9 @@ class _PetListPageState extends State<PetListPage> {
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text('删除', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                DataManager.deletePet(index);
-                Navigator.pop(ctx);
+              onTap: () async {
+                await DataManager.deletePet(index);
+                if (ctx.mounted) Navigator.pop(ctx);
                 setState(() {});
               },
             ),
@@ -1491,11 +1496,11 @@ class _AddPetPageState extends State<AddPetPage> {
 
   Widget _buildCard(String emoji, String label, bool sel, VoidCallback tap) => GestureDetector(onTap: tap, child: Container(width: 150, height: 100, decoration: BoxDecoration(color: sel ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.black : Colors.grey[300]!)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(emoji, style: const TextStyle(fontSize: 36)), const SizedBox(height: 8), Text(label, style: TextStyle(fontSize: 14, color: sel ? Colors.white : Colors.black))])));
 
-  void _savePet() {
+  Future<void> _savePet() async {
     final name = _nameController.text.isEmpty ? '宠物${DataManager.getPets().length + 1}' : _nameController.text;
     final pet = {'name': name, 'type': petType ?? 'cat', 'gender': gender ?? 'female', 'color': color ?? '', 'breed': breed ?? '', 'feature': feature ?? ''};
-    if (widget.petIndex != null) DataManager.updatePet(widget.petIndex!, pet);
-    else DataManager.addPet(pet);
+    if (widget.petIndex != null) await DataManager.updatePet(widget.petIndex!, pet);
+    else await DataManager.addPet(pet);
     setState(() => _showPetAnimation = true);
   }
 
@@ -1605,11 +1610,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () {
-              DataManager.setNickname(_nicknameController.text.isEmpty ? '点击编辑昵称' : _nicknameController.text);
+            onPressed: () async {
+              await DataManager.setNickname(_nicknameController.text.isEmpty ? '点击编辑昵称' : _nicknameController.text);
               final selectedNames = roles.where((r) => selectedRoles.contains(int.parse(r['id']!))).map((r) => r['name']!).toList();
-              DataManager.setRoles(selectedNames);
-              Navigator.pop(context);
+              await DataManager.setRoles(selectedNames);
+              if (context.mounted) Navigator.pop(context);
             },
             child: const Text('保存', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
