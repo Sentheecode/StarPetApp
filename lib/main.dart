@@ -1952,7 +1952,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 5;
+  static const int currentVersionCode = 7;
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {

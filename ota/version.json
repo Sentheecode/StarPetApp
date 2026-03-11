@@ -1,7 +1,7 @@
 {
-  "version": "1.0.7",
-  "versionCode": 7,
-  "releaseNote": "新增多个功能页面：家园、主题设置、消息通知、帮助反馈、关于我们",
+  "version": "1.0.8",
+  "versionCode": 8,
+  "releaseNote": "修复OTA版本检测问题",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
