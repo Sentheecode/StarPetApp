@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
@@ -17,7 +19,7 @@ class DataManager {
   static Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-    // 数据会在首次访问时加载
+    await _loadData(); // 加载保存的数据
   }
   
   // 加载数据
@@ -1676,5 +1678,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ],
       ),
     );
+  }
+}
+
+// ==================== OTA更新检测 ====================
+class OTAUpdater {
+  // 改成你的Tailscale IP
+  static const String baseUrl = 'http://100.64.77.197:8080';
+  
+  static Future<Map<String, dynamic>?> checkUpdate() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/version.json'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('检查更新失败: $e');
+    }
+    return null;
+  }
+  
+  static Future<void> downloadUpdate(BuildContext context) async {
+    try {
+      final url = '$baseUrl/app-release.apk';
+      // 实际项目中可以使用 dio 或 flutter_downloader 下载
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url));
+      }
+    } catch (e) {
+      print('下载更新失败: $e');
+    }
   }
 }
