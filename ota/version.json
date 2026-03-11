@@ -1,7 +1,7 @@
 {
-  "version": "1.0.4",
-  "versionCode": 4,
-  "releaseNote": "使用SQLite数据库，彻底解决数据保存问题",
+  "version": "1.0.5",
+  "versionCode": 5,
+  "releaseNote": "炫酷宠物获取动画 - 肉鸽游戏风格",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

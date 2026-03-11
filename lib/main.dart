@@ -1566,7 +1566,159 @@ class _AddPetPageState extends State<AddPetPage> {
     setState(() => _showPetAnimation = true);
   }
 
-  Widget _buildAnim() => GestureDetector(onTap: () { setState(() => _showPetAnimation = false); Navigator.pop(context); }, child: Container(color: Colors.black.withValues(alpha: 0.8), child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text(petType == 'cat' ? '🐱' : '🐕', style: const TextStyle(fontSize: 80)), const SizedBox(height: 20), Text(_nameController.text.isEmpty ? '新宠物' : _nameController.text, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)), const SizedBox(height: 10), const Text('恭喜获得新宠物!', style: TextStyle(fontSize: 16, color: Colors.white70)), const SizedBox(height: 30), const Text('点击任意处关闭', style: TextStyle(fontSize: 14, color: Colors.white54))]))));
+  Widget _buildAnim() {
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTap: () { setState(() => _showPetAnimation = false); Navigator.pop(context); },
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.9),
+          child: Stack(
+            children: [
+              // 背景闪光效果
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 800),
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment.center,
+                        radius: 1.5,
+                        colors: [
+                          Color.lerp(const Color(0xFFFFD700), const Color(0xFFFF6B6B), value)!.withValues(alpha: 0.3),
+                          Colors.black.withValues(alpha: 0.9),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // 中心内容
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // RARE / EPIC 标签
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 500),
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.scale(
+                            scale: 0.5 + (value * 0.5),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF6B6B)]),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 2)],
+                              ),
+                              child: const Text('★★★ 新宠物 ★★★', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 30),
+                    // 宠物图标放大弹跳
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.elasticOut,
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: Container(
+                            width: 160, height: 160,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const RadialGradient(colors: [Color(0xFFFFE4B5), Color(0xFFFFD700)]),
+                              boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.8), blurRadius: 40, spreadRadius: 10)],
+                            ),
+                            child: Center(child: Text(petType == 'cat' ? '🐱' : '🐕', style: const TextStyle(fontSize: 80))),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 30),
+                    // 宠物名字
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 800),
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Column(
+                            children: [
+                              Text(
+                                _nameController.text.isEmpty ? '新宠物' : _nameController.text,
+                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Color(0xFFFFD700), blurRadius: 10)]),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Text('${petType == 'cat' ? '猫咪' : '狗狗'} · ${gender == 'female' ? '雌性' : '雄性'}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 40),
+                    // 炫光文字
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 1000),
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, 20 * (1 - value)),
+                            child: const Text('✨ 恭喜获得新伙伴! ✨', style: TextStyle(fontSize: 20, color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 60),
+                    const Text('点击任意处关闭', style: TextStyle(color: Colors.white38, fontSize: 14)),
+                  ],
+                ),
+              ),
+              // 飘落的星星粒子
+              ...List.generate(20, (i) => _buildParticle(i)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticle(int index) {
+    final random = index * 17 % 100;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 1500 + random * 50),
+      builder: (context, value, child) {
+        return Positioned(
+          left: (random / 100) * 400 + 50,
+          top: -30 + (value * 900),
+          child: Opacity(
+            opacity: (1 - value) * 0.8,
+            child: Transform.rotate(
+              angle: value * 6.28,
+              child: Text(['✨', '⭐', '🌟', '💫', '✦'][index % 5], style: const TextStyle(fontSize: 24)),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
