@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
-  "versionCode": 5,
-  "releaseNote": "炫酷宠物获取动画 - 肉鸽游戏风格",
+  "version": "1.0.6",
+  "versionCode": 6,
+  "releaseNote": "OTA自动检测更新功能 - 启动时自动弹出更新提示",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

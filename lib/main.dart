@@ -137,6 +137,8 @@ class DataManager {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DataManager.init();
+  // 启动时检测更新
+  OTAUpdater.checkUpdateOnStart();
   runApp(const StarPetApp());
 }
 
@@ -200,6 +202,42 @@ class _HomePageState extends State<HomePage> {
         _petFrameIndex = (_petFrameIndex % 4) + 1;
       });
     });
+    
+    // 设置OTA更新弹窗回调
+    OTAUpdater.setUpdateDialogCallback((updateInfo) {
+      _showUpdateDialog(updateInfo);
+    });
+  }
+  
+  void _showUpdateDialog(Map<String, dynamic> updateInfo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发现新版本!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('版本: ${updateInfo['version'] ?? '新版本'}'),
+            const SizedBox(height: 8),
+            Text('更新说明: ${updateInfo['releaseNote'] ?? '暂无'}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('稍后再说'),
+          ),
+          TextButton(
+            onPressed: () {
+              OTAUpdater.downloadUpdate(context);
+              Navigator.pop(context);
+            },
+            child: const Text('立即更新'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1904,6 +1942,39 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
+  static const int currentVersionCode = 5;
+  
+  // 启动时检测更新
+  static Future<void> checkUpdateOnStart() async {
+    try {
+      final updateInfo = await checkUpdate();
+      if (updateInfo != null) {
+        final serverVersion = updateInfo['versionCode'] ?? 1;
+        if (serverVersion > currentVersionCode) {
+          // 保存待显示的更新信息，在APP启动后弹出
+          _pendingUpdate = updateInfo;
+          // 延迟弹出，让APP先启动完成
+          Future.delayed(const Duration(seconds: 2), () {
+            _showUpdateDialog?.call(_pendingUpdate!);
+          });
+        }
+      }
+    } catch (e) {
+      print('启动检测更新失败: $e');
+    }
+  }
+  
+  static Map<String, dynamic>? _pendingUpdate;
+  static Function(Map<String, dynamic>)? _showUpdateDialog;
+  
+  static void setUpdateDialogCallback(Function(Map<String, dynamic>) callback) {
+    _showUpdateDialog = callback;
+    if (_pendingUpdate != null) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        callback(_pendingUpdate!);
+      });
+    }
+  }
   
   static Future<Map<String, dynamic>?> checkUpdate() async {
     try {
