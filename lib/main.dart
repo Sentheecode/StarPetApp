@@ -36,7 +36,8 @@ class DataManager {
           CREATE TABLE user(
             id INTEGER PRIMARY KEY,
             nickname TEXT,
-            roles TEXT
+            roles TEXT,
+            theme INTEGER DEFAULT 0
           )
         ''');
         await db.execute('''
@@ -72,6 +73,8 @@ class DataManager {
         _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
         final rolesStr = user['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
+        // 加载主题
+        _currentThemeIndex = user['theme'] as int? ?? 0;
       }
       // 加载宠物数据
       final petsList = await db.query('pets');
@@ -91,6 +94,7 @@ class DataManager {
         {
           'nickname': _userData['nickname'] ?? '点击编辑昵称',
           'roles': (_userData['roles'] as List<String>).join(','),
+          'theme': _currentThemeIndex,
         },
         where: 'id = ?',
         whereArgs: [1],
@@ -452,9 +456,9 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        '♀ 雌性',
-                        style: TextStyle(fontSize: 10, color: Colors.white),
+                      child: Text(
+                        pets[0]['gender'] == 'female' ? '♀ 雌性' : '♂ 雄性',
+                        style: const TextStyle(fontSize: 10, color: Colors.black),
                       ),
                     ),
                   ],
@@ -1547,7 +1551,7 @@ class _PetListPageState extends State<PetListPage> {
                           const SizedBox(height: 4),
                           Text('${pet['breed'] ?? ''} · ${pet['color'] ?? ''}', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                           const SizedBox(height: 2),
-                          Text('${(pet['gender'] ?? 'female') == 'female' ? '雌性' : '雄性'} · ${pet['feature'] ?? ''}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                          Text('${(pet['gender'] ?? 'female') == 'female' ? '雌性' : '雄性'} · ${pet['feature'] ?? ''}', style: TextStyle(fontSize: 12, color: Colors.black54)),
                         ],
                       ),
                     ),
@@ -1957,7 +1961,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 7;
+  static const int currentVersionCode = 10;
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {

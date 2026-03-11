@@ -1,7 +1,7 @@
 {
-  "version": "1.0.9",
-  "versionCode": 9,
-  "releaseNote": "主题设置增加保存按钮，优化用户体验",
+  "version": "1.1.0",
+  "versionCode": 10,
+  "releaseNote": "修复主题保存问题，性别显示改为黑色文字",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
