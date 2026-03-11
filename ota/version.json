@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
-  "versionCode": 10,
-  "releaseNote": "修复主题保存问题，性别显示改为黑色文字",
+  "version": "1.1.1",
+  "versionCode": 11,
+  "releaseNote": "关于我们页面增加检查更新功能，有新版本显示红点",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
