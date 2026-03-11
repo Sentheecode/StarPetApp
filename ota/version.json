@@ -1,7 +1,7 @@
 {
-  "version": "1.0.3",
-  "versionCode": 3,
-  "releaseNote": "彻底修复数据持久化问题，确保保存成功",
+  "version": "1.0.4",
+  "versionCode": 4,
+  "releaseNote": "使用SQLite数据库，彻底解决数据保存问题",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

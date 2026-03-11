@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' show Database;
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
+  static Database? _database;
   static Map<String, dynamic> _userData = {'nickname': '点击编辑昵称', 'roles': <String>[]};
   static List<Map<String, dynamic>> _petsData = [];
   static List<Map<String, dynamic>> _postsData = [
@@ -14,29 +17,65 @@ class DataManager {
     {'content': '咪咪今天第一次尝试吃猫罐头，太可爱了！🐱', 'time': '2026-03-10 10:20', 'likes': 25},
     {'content': '新买的宠物玩具到了，俩孩子玩得不亦乐乎', 'time': '2026-03-09 18:45', 'likes': 8},
   ];
-  static bool _initialized = false;
+  
+  static Future<sqflite.Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB();
+    return _database!;
+  }
+  
+  static Future<sqflite.Database> _initDB() async {
+    final dbPath = await sqflite.getDatabasesPath();
+    final path = path_pkg.join(dbPath, 'starpet.db');
+    
+    return await sqflite.openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE user(
+            id INTEGER PRIMARY KEY,
+            nickname TEXT,
+            roles TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE pets(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            type TEXT,
+            gender TEXT,
+            color TEXT,
+            breed TEXT,
+            feature TEXT
+          )
+        ''');
+        // 初始化用户数据
+        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': ''});
+      },
+    );
+  }
   
   static Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
-    await _loadData(); // 加载保存的数据
+    await database;
+    await _loadData();
   }
   
   // 加载数据
   static Future<void> _loadData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final db = await database;
       // 加载用户数据
-      final nickname = prefs.getString('nickname');
-      if (nickname != null) _userData['nickname'] = nickname;
-      final roles = prefs.getStringList('roles');
-      if (roles != null) _userData['roles'] = roles;
-      // 加载宠物数据
-      final petsJson = prefs.getString('pets');
-      if (petsJson != null) {
-        final List<dynamic> decoded = jsonDecode(petsJson);
-        _petsData = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      final userList = await db.query('user', where: 'id = ?', whereArgs: [1]);
+      if (userList.isNotEmpty) {
+        final user = userList.first;
+        _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
+        final rolesStr = user['roles'] as String? ?? '';
+        _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
       }
+      // 加载宠物数据
+      final petsList = await db.query('pets');
+      _petsData = petsList.map((p) => Map<String, dynamic>.from(p)).toList();
     } catch (e) {
       print('加载数据失败: $e');
     }
@@ -45,12 +84,40 @@ class DataManager {
   // 保存数据
   static Future<void> _saveData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('nickname', _userData['nickname'] ?? '点击编辑昵称');
-      await prefs.setStringList('roles', List<String>.from(_userData['roles'] ?? []));
-      await prefs.setString('pets', jsonEncode(_petsData));
+      final db = await database;
+      // 保存用户数据
+      await db.update(
+        'user',
+        {
+          'nickname': _userData['nickname'] ?? '点击编辑昵称',
+          'roles': (_userData['roles'] as List<String>).join(','),
+        },
+        where: 'id = ?',
+        whereArgs: [1],
+      );
     } catch (e) {
       print('保存数据失败: $e');
+    }
+  }
+  
+  // 宠物单独保存
+  static Future<void> _savePets() async {
+    try {
+      final db = await database;
+      // 清空宠物表，重新插入
+      await db.delete('pets');
+      for (var pet in _petsData) {
+        await db.insert('pets', {
+          'name': pet['name'],
+          'type': pet['type'],
+          'gender': pet['gender'],
+          'color': pet['color'],
+          'breed': pet['breed'],
+          'feature': pet['feature'],
+        });
+      }
+    } catch (e) {
+      print('保存宠物失败: $e');
     }
   }
   
@@ -61,15 +128,10 @@ class DataManager {
   static List<String> getRoles() => List<String>.from(_userData['roles'] ?? []);
   static List<Map<String, dynamic>> getPets() => _petsData;
   static List<Map<String, dynamic>> getPosts() => _postsData;
-  static Future<void> addPet(Map<String, dynamic> pet) async { _petsData.add(pet); await _saveData(); }
-  static Future<void> updatePet(int index, Map<String, dynamic> pet) async { if (index >= 0 && index < _petsData.length) { _petsData[index] = pet; await _saveData(); } }
-  static Future<void> deletePet(int index) async { if (index >= 0 && index < _petsData.length) { _petsData.removeAt(index); await _saveData(); } }
+  static Future<void> addPet(Map<String, dynamic> pet) async { _petsData.add(pet); await _savePets(); }
+  static Future<void> updatePet(int index, Map<String, dynamic> pet) async { if (index >= 0 && index < _petsData.length) { _petsData[index] = pet; await _savePets(); } }
+  static Future<void> deletePet(int index) async { if (index >= 0 && index < _petsData.length) { _petsData.removeAt(index); await _savePets(); } }
   static void addPost(Map<String, dynamic> post) => _postsData.insert(0, post);
-  
-  // 同步保存到本地
-  static Future<void> saveAll() async {
-    await _saveData();
-  }
 }
 
 void main() async {
