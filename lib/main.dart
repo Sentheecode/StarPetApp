@@ -1211,11 +1211,21 @@ class _HomePageState extends State<HomePage> {
             _buildMenuItem(Icons.pets, '我的宠物', '添加/管理宠物', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const PetListPage()));
             }),
-            _buildMenuItem(Icons.home, '我的家园', '查看/编辑家园'),
-            _buildMenuItem(Icons.settings, '主题设置', '切换主题风格'),
-            _buildMenuItem(Icons.notifications, '消息通知', '推送消息设置'),
-            _buildMenuItem(Icons.help, '帮助与反馈', '常见问题'),
-            _buildMenuItem(Icons.info, '关于我们', '版本信息'),
+            _buildMenuItem(Icons.home, '我的家园', '查看/编辑家园', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeEditPage()));
+            }),
+            _buildMenuItem(Icons.settings, '主题设置', '切换主题风格', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ThemeSettingsPage()));
+            }),
+            _buildMenuItem(Icons.notifications, '消息通知', '推送消息设置', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()));
+            }),
+            _buildMenuItem(Icons.help, '帮助与反馈', '常见问题', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpFeedbackPage()));
+            }),
+            _buildMenuItem(Icons.info, '关于我们', '版本信息', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutUsPage()));
+            }),
           ],
         ),
       ),
@@ -1998,5 +2008,256 @@ class OTAUpdater {
     } catch (e) {
       print('下载更新失败: $e');
     }
+  }
+}
+
+// ==================== 我的家园页面 ====================
+class HomeEditPage extends StatelessWidget {
+  const HomeEditPage({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('我的家园', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.home, size: 80, color: Colors.grey),
+            SizedBox(height: 20),
+            Text('家园系统开发中...', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            SizedBox(height: 10),
+            Text('敬请期待!', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 主题设置页面 ====================
+class ThemeSettingsPage extends StatefulWidget {
+  const ThemeSettingsPage({super.key});
+  @override
+  State<ThemeSettingsPage> createState() => _ThemeSettingsPageState();
+}
+
+class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
+  int _selectedTheme = 0;
+  
+  final List<Map<String, dynamic>> _themes = [
+    {'name': '粉紫甜心', 'colors': [const Color(0xFFFF69B4), const Color(0xFF9370DB)]},
+    {'name': '苹果简约', 'colors': [Colors.black, Colors.grey]},
+    {'name': '清新薄荷', 'colors': [const Color(0xFF98FB98), const Color(0xFF20B2AA)]},
+    {'name': '天空蓝', 'colors': [const Color(0xFF87CEEB), const Color(0xFF4169E1)]},
+    {'name': ' sunset橙', 'colors': [const Color(0xFFFF6347), const Color(0xFFFFD700)]},
+    {'name': '暗黑模式', 'colors': [Colors.black, Colors.black]},
+  ];
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('主题设置', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text('选择主题风格', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ...List.generate(_themes.length, (i) {
+            final theme = _themes[i];
+            final isSelected = _selectedTheme == i;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedTheme = i),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: theme['colors'] as List<Color>),
+                  borderRadius: BorderRadius.circular(16),
+                  border: isSelected ? Border.all(color: Colors.white, width: 3) : null,
+                  boxShadow: isSelected ? [BoxShadow(color: (theme['colors'][0] as Color).withValues(alpha: 0.5), blurRadius: 10)] : null,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(theme['name'] as String, style: TextStyle(color: isSelected ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                    if (isSelected) const Icon(Icons.check_circle, color: Colors.white),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 消息通知页面 ====================
+class NotificationsPage extends StatefulWidget {
+  const NotificationsPage({super.key});
+  @override
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<NotificationsPage> {
+  bool _pushEnabled = true;
+  bool _soundEnabled = true;
+  bool _vibrateEnabled = true;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('消息通知', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildSwitch('接收推送通知', '开启后接收新消息提醒', _pushEnabled, (v) => setState(() => _pushEnabled = v)),
+          _buildSwitch('声音', '消息提示音', _soundEnabled, (v) => setState(() => _soundEnabled = v)),
+          _buildSwitch('震动', '消息震动提醒', _vibrateEnabled, (v) => setState(() => _vibrateEnabled = v)),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSwitch(String title, String subtitle, bool value, Function(bool) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 帮助与反馈页面 ====================
+class HelpFeedbackPage extends StatelessWidget {
+  const HelpFeedbackPage({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('帮助与反馈', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildFAQ('如何添加宠物?', '进入"我的"页面，点击"我的宠物"，然后点击+按钮添加'),
+          _buildFAQ('如何修改昵称?', '点击头像区域的昵称即可编辑'),
+          _buildFAQ('什么是云养宠?', '远程关注其他用户的宠物'),
+          _buildFAQ('数据会自动保存吗?', '是的，所有数据会自动保存到本地'),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('反馈功能开发中...')));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('提交反馈', style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildFAQ(String question, String answer) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(question, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(answer, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 关于我们页面 ====================
+class AboutUsPage extends StatelessWidget {
+  const AboutUsPage({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('关于我们', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100, height: 100,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFF69B4), Color(0xFF9370DB)]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(child: Text('🐾', style: TextStyle(fontSize: 50))),
+            ),
+            const SizedBox(height: 20),
+            const Text('星宠', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('版本 1.0.6', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 30),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 40),
+              child: Text('星宠是一款专为宠物爱好者打造的社交应用，在这里你可以记录宠物的成长，分享养宠乐趣。', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+            ),
+            const SizedBox(height: 40),
+            Text('© 2026 StarPet', style: TextStyle(color: Colors.grey[400])),
+          ],
+        ),
+      ),
+    );
   }
 }

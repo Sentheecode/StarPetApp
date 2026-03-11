@@ -1,7 +1,7 @@
 {
-  "version": "1.0.6",
-  "versionCode": 6,
-  "releaseNote": "OTA自动检测更新功能 - 启动时自动弹出更新提示",
+  "version": "1.0.7",
+  "versionCode": 7,
+  "releaseNote": "新增多个功能页面：家园、主题设置、消息通知、帮助反馈、关于我们",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
