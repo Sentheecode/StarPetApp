@@ -14,14 +14,12 @@ dependencies:
   # 状态管理
   provider: ^6.1.2
   
+  # 数据持久化
+  shared_preferences: ^2.3.3
+  
   # 网络
   http: ^1.2.2
   cached_network_image: ^3.4.1
-  
-  # 本地存储
-  shared_preferences: ^2.3.3
-  sqflite: ^2.4.1
-  path: ^1.9.0
   
   # 图片
   image_picker: ^1.1.2

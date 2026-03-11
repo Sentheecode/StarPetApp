@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
@@ -10,18 +12,56 @@ class DataManager {
     {'content': '咪咪今天第一次尝试吃猫罐头，太可爱了！🐱', 'time': '2026-03-10 10:20', 'likes': 25},
     {'content': '新买的宠物玩具到了，俩孩子玩得不亦乐乎', 'time': '2026-03-09 18:45', 'likes': 8},
   ];
+  static bool _initialized = false;
   
-  static Future<void> init() async {}
+  static Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+    // 数据会在首次访问时加载
+  }
+  
+  // 加载数据
+  static Future<void> _loadData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // 加载用户数据
+      final nickname = prefs.getString('nickname');
+      if (nickname != null) _userData['nickname'] = nickname;
+      final roles = prefs.getStringList('roles');
+      if (roles != null) _userData['roles'] = roles;
+      // 加载宠物数据
+      final petsJson = prefs.getString('pets');
+      if (petsJson != null) {
+        final List<dynamic> decoded = jsonDecode(petsJson);
+        _petsData = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+    } catch (e) {
+      print('加载数据失败: $e');
+    }
+  }
+  
+  // 保存数据
+  static Future<void> _saveData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nickname', _userData['nickname'] ?? '点击编辑昵称');
+      await prefs.setStringList('roles', List<String>.from(_userData['roles'] ?? []));
+      await prefs.setString('pets', jsonEncode(_petsData));
+    } catch (e) {
+      print('保存数据失败: $e');
+    }
+  }
+  
   static Map<String, dynamic> getUserData() => _userData;
-  static void setNickname(String name) => _userData['nickname'] = name;
-  static void setRoles(List<String> roles) => _userData['roles'] = roles;
+  static void setNickname(String name) { _userData['nickname'] = name; _saveData(); }
+  static void setRoles(List<String> roles) { _userData['roles'] = roles; _saveData(); }
   static String getNickname() => _userData['nickname'] ?? '点击编辑昵称';
   static List<String> getRoles() => List<String>.from(_userData['roles'] ?? []);
   static List<Map<String, dynamic>> getPets() => _petsData;
   static List<Map<String, dynamic>> getPosts() => _postsData;
-  static void addPet(Map<String, dynamic> pet) => _petsData.add(pet);
-  static void updatePet(int index, Map<String, dynamic> pet) { if (index >= 0 && index < _petsData.length) _petsData[index] = pet; }
-  static void deletePet(int index) { if (index >= 0 && index < _petsData.length) _petsData.removeAt(index); }
+  static void addPet(Map<String, dynamic> pet) { _petsData.add(pet); _saveData(); }
+  static void updatePet(int index, Map<String, dynamic> pet) { if (index >= 0 && index < _petsData.length) { _petsData[index] = pet; _saveData(); } }
+  static void deletePet(int index) { if (index >= 0 && index < _petsData.length) { _petsData.removeAt(index); _saveData(); } }
   static void addPost(Map<String, dynamic> post) => _postsData.insert(0, post);
 }
 
