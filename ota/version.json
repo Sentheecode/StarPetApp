@@ -1,7 +1,7 @@
 {
-  "version": "1.5.0",
-  "versionCode": 25,
-  "releaseNote": "所有数据存入kv_store",
+  "version": "1.5.1",
+  "versionCode": 26,
+  "releaseNote": "所有用户数据存入kv_store",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

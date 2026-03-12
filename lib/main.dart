@@ -101,26 +101,18 @@ class DataManager {
   static Future<void> _loadData() async {
     try {
       final db = await database;
-      // 加载用户数据
-      final userList = await db.query('user', where: 'id = ?', whereArgs: [1]);
-      if (userList.isNotEmpty) {
-        final user = userList.first;
-        _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
-        final rolesStr = user['roles'] as String? ?? '';
-        _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
-        // 加载主题
-        final themeFromDb = user['theme'];
-        print('=== DB中theme字段: $themeFromDb (类型: ${themeFromDb.runtimeType}) ===');
-        _currentThemeIndex = (themeFromDb as int?) ?? 1;
-        _userData['theme'] = _currentThemeIndex;
-        // 从 kv_store 加载金币、签到数据
-        _userData['coins'] = int.tryParse(await _getKv('coins', '1000')) ?? 1000;
-        _userData['lastSignIn'] = await _getKv('lastSignIn', '');
-        _userData['signInDays'] = int.tryParse(await _getKv('signInDays', '0')) ?? 0;
-        
-        print('=== 从KV加载: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
-        print('=== 从数据库加载主题: $_currentThemeIndex ===');
-      }
+      // 从 kv_store 加载所有用户数据
+      _userData['nickname'] = await _getKv('nickname', '点击编辑昵称');
+      final rolesStr = await _getKv('roles', '');
+      _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
+      _currentThemeIndex = int.tryParse(await _getKv('theme', '1')) ?? 1;
+      _userData['theme'] = _currentThemeIndex;
+      _userData['coins'] = int.tryParse(await _getKv('coins', '1000')) ?? 1000;
+      _userData['lastSignIn'] = await _getKv('lastSignIn', '');
+      _userData['signInDays'] = int.tryParse(await _getKv('signInDays', '0')) ?? 0;
+      
+      print('=== 从KV加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      
       // 加载宠物数据
       final petsList = await db.query('pets');
       _petsData = petsList.map((p) => Map<String, dynamic>.from(p)).toList();
@@ -136,17 +128,15 @@ class DataManager {
       
       // 保存到 user 表（只保存基本信息）
       await db.delete('user', where: 'id = ?', whereArgs: [1]);
-      await db.insert('user', {
-        'id': 1,
-        'nickname': _userData['nickname'] ?? '点击编辑昵称',
-        'roles': (_userData['roles'] as List<String>).join(','),
-        'theme': _currentThemeIndex,
-      });
-      // 保存金币、签到数据到 kv_store
+      await db.insert('user', {'id': 1, 'nickname': _userData['nickname'] ?? '点击编辑昵称', 'roles': (_userData['roles'] as List<String>).join(','), 'theme': _currentThemeIndex});
+      // 所有用户数据都存到 kv_store
+      await _setKv('nickname', _userData['nickname'] ?? '点击编辑昵称');
+      await _setKv('roles', (_userData['roles'] as List<String>).join(','));
+      await _setKv('theme', _currentThemeIndex.toString());
       await _setKv('coins', (_userData['coins'] ?? 1000).toString());
       await _setKv('lastSignIn', _userData['lastSignIn'] ?? '');
       await _setKv('signInDays', (_userData['signInDays'] ?? 0).toString());
-      print('=== 保存到KV: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
+      print('=== 保存到KV: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
