@@ -128,9 +128,21 @@ class DataManager {
         _currentThemeIndex = (themeFromDb as int?) ?? 1;
         _userData['theme'] = _currentThemeIndex;
         // 加载金币、签到数据
-        _userData['coins'] = user['coins'] ?? 1000;
-        _userData['lastSignIn'] = user['lastSignIn'] ?? '';
-        _userData['signInDays'] = user['signInDays'] ?? 0;
+        final coinsVal = user['coins'];
+        final lastSignInVal = user['lastSignIn'];
+        final signInDaysVal = user['signInDays'];
+        
+        print('=== DB原始值: coins=$coinsVal, lastSignIn=$lastSignInVal, signInDays=$signInDaysVal ===');
+        
+        if (coinsVal != null) {
+          _userData['coins'] = coinsVal is int ? coinsVal : int.tryParse(coinsVal.toString()) ?? 1000;
+        } else {
+          _userData['coins'] = 1000;
+        }
+        
+        _userData['lastSignIn'] = lastSignInVal?.toString() ?? '';
+        _userData['signInDays'] = signInDaysVal is int ? signInDaysVal : int.tryParse(signInDaysVal?.toString() ?? '0') ?? 0;
+        
         print('=== 从DB加载: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
@@ -147,20 +159,26 @@ class DataManager {
     try {
       final db = await database;
       // 保存用户数据
+      final coins = _userData['coins'] ?? 1000;
+      final lastSignIn = _userData['lastSignIn'] ?? '';
+      final signInDays = _userData['signInDays'] ?? 0;
+      
+      print('=== 保存到DB前: coins=$coins (${coins.runtimeType}), signInDays=$signInDays (${signInDays.runtimeType}) ===');
+      
       await db.update(
         'user',
         {
           'nickname': _userData['nickname'] ?? '点击编辑昵称',
           'roles': (_userData['roles'] as List<String>).join(','),
           'theme': _currentThemeIndex,
-          'coins': _userData['coins'] ?? 1000,
-          'lastSignIn': _userData['lastSignIn'] ?? '',
-          'signInDays': _userData['signInDays'] ?? 0,
+          'coins': coins is int ? coins : int.tryParse(coins.toString()) ?? 1000,
+          'lastSignIn': lastSignIn.toString(),
+          'signInDays': signInDays is int ? signInDays : int.tryParse(signInDays.toString()) ?? 0,
         },
         where: 'id = ?',
         whereArgs: [1],
       );
-      print('=== 保存到DB: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
+      print('=== 保存到DB: coins=$coins, signInDays=$signInDays, lastSignIn=$lastSignIn ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -2279,8 +2297,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 18;
-  static const String currentVersion = '1.4.3';
+  static const int currentVersionCode = 19;
+  static const String currentVersion = '1.4.4';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
