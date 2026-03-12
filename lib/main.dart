@@ -215,7 +215,10 @@ class DataManager {
   
   // 金币相关
   static int getCoins() => _userData['coins'] as int? ?? 1000;
-  static Future<void> addCoins(int amount) async { _userData['coins'] = (getCoins() + amount); await _saveData(); await _setKv('coins', (_userData['coins'] ?? 1000).toString()); }
+  static Future<void> addCoins(int amount) async { 
+    _userData['coins'] = (getCoins() + amount); 
+    await _setKv('coins', (_userData['coins'] ?? 1000).toString());
+  }
   
   // 签到相关
   static String getLastSignIn() => _userData['lastSignIn'] as String? ?? '';
@@ -225,10 +228,18 @@ class DataManager {
   static Future<Map<String, dynamic>> getRawUserData() async {
     try {
       final db = await database;
-      final result = await db.query('user', where: 'id = ?', whereArgs: [1]);
-      if (result.isNotEmpty) {
-        return result.first;
+      // 获取 user 表
+      final userResult = await db.query('user', where: 'id = ?', whereArgs: [1]);
+      // 获取 kv_store
+      final kvResult = await db.query('kv_store');
+      final Map<String, dynamic> data = {};
+      if (userResult.isNotEmpty) {
+        data.addAll(userResult.first);
       }
+      for (var row in kvResult) {
+        data[row['key'].toString()] = row['value'];
+      }
+      return data;
     } catch (e) {
       print('读取原始用户数据失败: $e');
     }
@@ -2302,8 +2313,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 24;
-  static const String currentVersion = '1.4.9';
+  static const int currentVersionCode = 25;
+  static const String currentVersion = '1.5.0';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
