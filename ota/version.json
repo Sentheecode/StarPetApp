@@ -1,7 +1,7 @@
 {
-  "version": "1.7.0",
-  "versionCode": 31,
-  "releaseNote": "使用Supabase存储用户数据",
-  "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
+  "version": "2.6.2",
+  "versionCode": 58,
+  "releaseNote": "清理代码警告，优化细节",
+  "downloadUrl": "http://100.115.16.2:8080/app-release.apk",
   "forceUpdate": false
 }

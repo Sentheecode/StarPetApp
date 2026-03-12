@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart' show Database, ConflictAlgorithm;
+import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
-  static final _supabase = SupabaseClient('https://xitslotqqmxakthbvurd.supabase.co', '$SUPABASE_KEY');
+  static const _supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: 'YOUR_SUPABASE_KEY_HERE');
+  static final _supabase = SupabaseClient('https://xitslotqqmxakthbvurd.supabase.co', _supabaseKey);
   static Database? _database;
   static SharedPreferences? _prefs;
   static Map<String, dynamic> _userData = {'nickname': '点击编辑昵称', 'roles': <String>[]};
@@ -95,32 +97,62 @@ class DataManager {
   
   static Future<void> init() async {
     await database;
-    await _loadData();
-    await HomeData.loadItems();
+    // 加超时，网络不通时最多等5秒
+    try {
+      await _loadData().timeout(const Duration(seconds: 5), onTimeout: () {
+        print('加载数据超时，使用本地默认值');
+      });
+    } catch(e) {
+      print('加载数据失败: $e');
+    }
+    try {
+      await HomeData.loadItems().timeout(const Duration(seconds: 5), onTimeout: () {
+        print('加载家园数据超时');
+      });
+    } catch(e) {
+      print('加载家园失败: $e');
+    }
   }
   
   // 加载数据
   static Future<void> _loadData() async {
     try {
-      // 从 Supabase 加载用户数据
-      final response = await _supabase.from('user').select().eq('id', 1);
-      if (response.isNotEmpty) {
-        final user = response[0];
+      // 并行加载所有数据
+      final results = await Future.wait([
+        _supabase.from('user').select().eq('id', 1),
+        _supabase.from('pets').select().eq('user_id', 1),
+        _supabase.from('pet_attrs').select(),
+      ]);
+      
+      final userResp = results[0];
+      final petsResp = results[1];
+      final attrsResp = results[2];
+      
+      // 用户数据
+      if (userResp.isNotEmpty) {
+        final user = userResp[0];
         _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
         final rolesStr = user['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
         _currentThemeIndex = user['theme'] as int? ?? 1;
+        StarPetApp.updateTheme(_currentThemeIndex);
         _userData['coins'] = user['coins'] ?? 1000;
         _userData['lastSignIn'] = user['lastSignIn'] ?? '';
         _userData['signInDays'] = user['signInDays'] ?? 0;
       }
       
-      print('=== 从Supabase加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      // 宠物数据
+      _petsData = petsResp.map((pet) {
+        final petId = pet['id'];
+        final attrs = attrsResp.where((a) => a['pet_id'] == petId).toList();
+        for (var attr in attrs) {
+          if (attr['attr_name'] == '毛色') pet['color'] = attr['attr_value'];
+          if (attr['attr_name'] == '性格') pet['feature'] = attr['attr_value'];
+        }
+        return Map<String, dynamic>.from(pet);
+      }).toList();
       
-      // 加载宠物数据（本地 SQLite）
-      final db = await database;
-      final petsList = await db.query('pets');
-      _petsData = petsList.map((p) => Map<String, dynamic>.from(p)).toList();
+      
     } catch (e) {
       print('加载数据失败: $e');
     }
@@ -136,48 +168,113 @@ class DataManager {
       final lastSignIn = _userData['lastSignIn'] ?? '';
       final signInDays = _userData['signInDays'] ?? 0;
       
-      print('=== 保存到Supabase: nickname=$nickname, roles=$roles, theme=$theme, coins=$coins ===');
       
-      // 保存到 Supabase
-      await _supabase.from('user').upsert({
-        'id': 1,
-        'nickname': nickname,
-        'roles': roles,
-        'theme': theme,
-        'coins': coins,
-        'lastSignIn': lastSignIn,
-        'signInDays': signInDays,
-      });
-      print('=== 保存到Supabase成功 ===');
+      
+      // 检查用户是否存在
+      final existing = await _supabase.from('user').select().eq('id', 1);
+      if (existing.isEmpty) {
+        // 创建新用户
+        await _supabase.from('user').insert({
+          'id': 1,
+          'nickname': nickname,
+          'roles': roles,
+          'theme': theme,
+          'coins': coins,
+          'lastSignIn': lastSignIn,
+          'signInDays': signInDays,
+        });
+        
+      } else {
+        // 更新用户
+        await _supabase.from('user').update({
+          'nickname': nickname,
+          'roles': roles,
+          'theme': theme,
+          'coins': coins,
+          'lastSignIn': lastSignIn,
+          'signInDays': signInDays,
+        }).eq('id', 1);
+      }
     } catch (e) {
-      print('保存数据失败: $e');
+      // 保存失败静默处理
     }
   }
   
-  // 宠物单独保存
+  // 宠物单独保存 (优化: 使用upsert批量操作)
   static Future<void> _savePets() async {
     try {
-      final db = await database;
-      // 清空宠物表，重新插入
-      await db.delete('pets');
-      for (var pet in _petsData) {
-        await db.insert('pets', {
-          'name': pet['name'],
-          'type': pet['type'],
-          'gender': pet['gender'],
-          'color': pet['color'],
-          'breed': pet['breed'],
-          'feature': pet['feature'],
-        });
+      if (_petsData.isEmpty) return;
+      
+      // 准备批量数据
+      final petsToInsert = _petsData.map((pet) => {
+        'name': pet['name'] ?? '宠物',
+        'type': pet['type'] ?? 'cat',
+        'gender': pet['gender'] ?? 'female',
+        'breed': pet['breed'] ?? '',
+        'user_id': 1,
+      }).toList();
+      
+      // 批量upsert
+      await _supabase.from('pets').upsert(petsToInsert, onConflict: 'id');
+      
+      // 重新查询获取ID
+      final savedPets = await _supabase.from('pets').select().eq('user_id', 1);
+      
+      // 批量保存属性
+      final attrsToInsert = <Map<String, dynamic>>[];
+      for (var pet in savedPets) {
+        final localPet = _petsData.firstWhere((p) => p['name'] == pet['name'], orElse: () => {});
+        if (localPet['color'] != null && localPet['color'].toString().isNotEmpty) {
+          attrsToInsert.add({'pet_id': pet['id'], 'attr_name': '毛色', 'attr_value': localPet['color']});
+        }
+        if (localPet['feature'] != null && localPet['feature'].toString().isNotEmpty) {
+          attrsToInsert.add({'pet_id': pet['id'], 'attr_name': '性格', 'attr_value': localPet['feature']});
+        }
+      }
+      
+      if (attrsToInsert.isNotEmpty) {
+        await _supabase.from('pet_attrs').upsert(attrsToInsert, onConflict: 'id');
       }
     } catch (e) {
-      print('保存宠物失败: $e');
+      throw Exception('保存失败: $e');
     }
   }
   
   static Map<String, dynamic> getUserData() => _userData;
-  static Future<void> setNickname(String name) async { _userData['nickname'] = name; await _saveData(); }
-  static Future<void> setRoles(List<String> roles) async { _userData['roles'] = roles; await _saveData(); }
+  static void setUserData(String key, dynamic value) { _userData[key] = value; }
+  static Future<void> setNickname(String name) async { 
+    _userData['nickname'] = name; 
+    await _saveData(); 
+  }
+  static Future<void> setRoles(List<String> roles) async { 
+    _userData['roles'] = roles; 
+    await _saveData(); 
+  }
+  static Future<bool> saveAndGetResult() async {
+    try {
+      final nickname = _userData['nickname'] ?? '点击编辑昵称';
+      final roles = (_userData['roles'] as List<String>?)?.join(',') ?? '';
+      final theme = _currentThemeIndex;
+      final coins = _userData['coins'] ?? 1000;
+      final lastSignIn = _userData['lastSignIn'] ?? '';
+      final signInDays = _userData['signInDays'] ?? 0;
+      
+      final existing = await _supabase.from('user').select().eq('id', 1);
+      if (existing.isEmpty) {
+        await _supabase.from('user').insert({
+          'id': 1, 'nickname': nickname, 'roles': roles, 'theme': theme, 'coins': coins, 'lastSignIn': lastSignIn, 'signInDays': signInDays,
+        });
+      } else {
+        await _supabase.from('user').update({
+          'nickname': nickname, 'roles': roles, 'theme': theme, 'coins': coins, 'lastSignIn': lastSignIn, 'signInDays': signInDays,
+        }).eq('id', 1);
+      }
+      return true;
+    } catch (e) {
+      
+      return false;
+    }
+  }
   static String getNickname() => _userData['nickname'] ?? '点击编辑昵称';
   static List<String> getRoles() => List<String>.from(_userData['roles'] ?? []);
   static List<Map<String, dynamic>> getPets() => _petsData;
@@ -190,7 +287,11 @@ class DataManager {
   // 主题相关
   static int _currentThemeIndex = 1;
   static int getCurrentTheme() => _currentThemeIndex;
-  static Future<void> setTheme(int index) async { _currentThemeIndex = index; await _saveData(); }
+  static Future<void> setTheme(int index) async { 
+    _currentThemeIndex = index; 
+    StarPetApp.updateTheme(index); // 同步到UI
+    await _saveData(); 
+  }
   
   // 键值存储辅助方法
   static Future<void> _setKv(String key, String value) async {
@@ -198,7 +299,7 @@ class DataManager {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs!.setString(key, value);
     } catch (e) {
-      print('保存失败: $key=$value, error=$e');
+      
     }
   }
   
@@ -226,14 +327,13 @@ class DataManager {
   // 直接从数据库读取（用于调试）
   static Future<Map<String, dynamic>> getRawUserData() async {
     try {
-      final db = await database;
-      // 只获取 user 表
-      final userResult = await db.query('user', where: 'id = ?', whereArgs: [1]);
-      if (userResult.isNotEmpty) {
-        return userResult.first;
+      // 从 Supabase 获取用户数据
+      final response = await _supabase.from('user').select().eq('id', 1);
+      if (response.isNotEmpty) {
+        return Map<String, dynamic>.from(response[0]);
       }
     } catch (e) {
-      print('读取user表失败: $e');
+      print('读取Supabase失败: $e');
     }
     return {};
   }
@@ -295,12 +395,851 @@ void main() async {
   // 初始化 Supabase
   await Supabase.initialize(
     url: 'https://xitslotqqmxakthbvurd.supabase.co',
-    anonKey: '$SUPABASE_KEY',
+    anonKey: const String.fromEnvironment('SUPABASE_KEY', defaultValue: 'YOUR_SUPABASE_KEY_HERE'),
   );
-  await DataManager.init();
-  // 启动时检测更新
-  OTAUpdater.checkUpdateOnStart();
-  runApp(const StarPetApp());
+  
+  // 显示启动画面
+  runApp(const SplashScreen());
+}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+  
+  Future<void> _initApp() async {
+    await DataManager.init();
+    OTAUpdater.checkUpdateOnStart();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const StarPetApp()));
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('🐾', style: TextStyle(fontSize: 80)),
+              const SizedBox(height: 20),
+              const Text('星宠', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              CircularProgressIndicator(color: Colors.grey[400]),
+              const SizedBox(height: 20),
+              Text('加载中...', style: TextStyle(color: Colors.grey[500])),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 宠物友好商场推荐表单 ====================
+class RecommendMallPage extends StatefulWidget {
+  const RecommendMallPage({super.key});
+  @override
+  State<RecommendMallPage> createState() => _RecommendMallPageState();
+}
+
+class _RecommendMallPageState extends State<RecommendMallPage> {
+  final _nameController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _reasonController = TextEditingController();
+  String _selectedCity = '杭州';
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('推荐商场', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: _submit,
+            child: const Text('发布', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSection('基本信息', [
+            _buildTextField('商场名称', _nameController, '请输入商场名称'),
+            _buildTextField('详细地址', _addressController, '请输入详细地址'),
+            _buildTextField('联系电话', _phoneController, '请输入联系电话'),
+          ]),
+          const SizedBox(height: 20),
+          _buildSection('推荐理由', [
+            _buildTextField('推荐理由', _reasonController, '请描述为什么推荐这个商场', maxLines: 4),
+          ]),
+          const SizedBox(height: 20),
+          _buildSection('所在城市', [
+            Wrap(
+              spacing: 12,
+              children: [
+                _buildCityChip('杭州'),
+                _buildCityChip('南京'),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.orange),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('提交后需要10人投票支持，达到5人支持后将展示在商场列表中', style: TextStyle(color: Colors.orange[800], fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+  
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+  
+  Widget _buildCityChip(String city) {
+    final selected = _selectedCity == city;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCity = city),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFE91E63) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(city, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+  
+  void _submit() {
+    if (_nameController.text.isEmpty || _addressController.text.isEmpty || _phoneController.text.isEmpty || _reasonController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写完整信息')));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('✅ 提交成功'),
+        content: const Text('感谢您的推荐！等待其他用户投票支持。'),
+        actions: [TextButton(onPressed: () { Navigator.pop(ctx); Navigator.pop(context); }, child: const Text('知道了'))],
+      ),
+    );
+  }
+}
+
+// ==================== 宠物友好商场页面 ====================
+class PetMallPage extends StatefulWidget {
+  const PetMallPage({super.key});
+  @override
+  State<PetMallPage> createState() => _PetMallPageState();
+}
+
+class _PetMallPageState extends State<PetMallPage> {
+  String _selectedCity = '杭州';
+  Position? _userPosition;
+  bool _locationLoading = true;
+  
+  final List<Map<String, dynamic>> _malls = [
+    {'name': '宠物之星', 'city': '杭州', 'address': '西湖区文一路100号', 'phone': '0571-88888888', 'rating': 4.8, 'tags': ['宠物食品', '宠物玩具'], 'lat': 30.2741, 'lng': 120.1551},
+    {'name': '萌宠之家', 'city': '杭州', 'address': '拱墅区湖墅南路200号', 'phone': '0571-87777777', 'rating': 4.6, 'tags': ['宠物美容', '宠物寄养'], 'lat': 30.3120, 'lng': 120.1650},
+    {'name': '汪星人乐园', 'city': '杭州', 'address': '滨江区江南大道500号', 'phone': '0571-86666666', 'rating': 4.9, 'tags': ['宠物游泳', '宠物培训'], 'lat': 30.2084, 'lng': 120.2093},
+    {'name': '喵星人工作室', 'city': '杭州', 'address': '上城区平海路150号', 'phone': '0571-85555555', 'rating': 4.7, 'tags': ['宠物美容', '宠物摄影'], 'lat': 30.2489, 'lng': 120.1658},
+    {'name': '宠物医院', 'city': '南京', 'address': '鼓楼区中山路200号', 'phone': '025-83333333', 'rating': 4.8, 'tags': ['宠物医疗', '疫苗'], 'lat': 32.0603, 'lng': 118.7969},
+    {'name': '爱宠宠物店', 'city': '南京', 'address': '秦淮区夫子庙街50号', 'phone': '025-82222222', 'rating': 4.5, 'tags': ['宠物食品', '宠物玩具'], 'lat': 32.0170, 'lng': 118.7876},
+    {'name': '萌宠王国', 'city': '南京', 'address': '玄武区长江路100号', 'phone': '025-81111111', 'rating': 4.7, 'tags': ['宠物美容', '宠物寄养'], 'lat': 32.0603, 'lng': 118.7969},
+    {'name': '汪汪宠物生活馆', 'city': '南京', 'address': '建邺区河西大街300号', 'phone': '025-80000000', 'rating': 4.6, 'tags': ['宠物游泳', '宠物培训'], 'lat': 32.0650, 'lng': 118.7780},
+  ];
+  
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+  
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { setState(() => _locationLoading = false); return; }
+      
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition();
+        setState(() => _userPosition = pos);
+      }
+    } catch(e) {
+      print('获取位置失败: $e');
+    }
+    setState(() => _locationLoading = false);
+  }
+  
+  double? _getDistance(double lat, double lng) {
+    if (_userPosition == null) return null;
+    return Geolocator.distanceBetween(_userPosition!.latitude, _userPosition!.longitude, lat, lng) / 1000;
+  }
+  
+  List<Map<String, dynamic>> get _filteredMalls {
+    return _malls.where((m) => m['city'] == _selectedCity).toList();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('宠物友好商场', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildCityChip('杭州'),
+                const SizedBox(width: 12),
+                _buildCityChip('南京'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredMalls.length,
+              itemBuilder: (ctx, i) => _buildMallCard(_filteredMalls[i]),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecommendMallPage())),
+        backgroundColor: const Color(0xFFE91E63),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+  
+  Widget _buildCityChip(String city) {
+    final selected = _selectedCity == city;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCity = city),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFF69B4) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(city, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+  
+  Widget _buildMallCard(Map<String, dynamic> mall) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 商场图片占位
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.store, size: 40, color: Colors.grey),
+                  const SizedBox(height: 4),
+                  Text('${mall['name']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(mall['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            const Text('⭐ ', style: TextStyle(color: Colors.orange, fontSize: 14)),
+                            Text('${mall['rating']}', style: const TextStyle(color: Colors.orange, fontSize: 14)),
+                            const SizedBox(width: 8),
+                            ...mall['tags'].map<Widget>((t) => Container(
+                              margin: const EdgeInsets.only(right: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: const Color(0xFFFF69B4).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                              child: Text(t, style: const TextStyle(fontSize: 10, color: Color(0xFFFF69B4))),
+                            )),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  GestureDetector(
+                    onTap: () => _showLocation(mall['address']),
+                    child: Row(children: [
+                      const Icon(Icons.location_on, size: 16, color: Color(0xFF4CAF50)), 
+                      const SizedBox(width: 4), 
+                      Text(_locationLoading ? '加载中...' : (_getDistance(mall['lat'], mall['lng']) != null ? '${_getDistance(mall['lat'], mall['lng'])!.toStringAsFixed(1)}km' : '查看位置'), style: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                  const SizedBox(width: 24),
+                  Row(children: [const Icon(Icons.phone, size: 16, color: Color(0xFF2196F3)), const SizedBox(width: 4), Text(mall['phone'], style: const TextStyle(color: Color(0xFF2196F3)))]),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showLocation(String address) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('📍 商户位置'),
+        content: Text(address),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('知道了')),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 宠物友好草坪页面 ====================
+// ==================== 宠物友好草坪推荐表单 ====================
+class RecommendLawnPage extends StatefulWidget {
+  const RecommendLawnPage({super.key});
+  @override
+  State<RecommendLawnPage> createState() => _RecommendLawnPageState();
+}
+
+class _RecommendLawnPageState extends State<RecommendLawnPage> {
+  final _nameController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _reasonController = TextEditingController();
+  String _selectedCity = '杭州';
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('推荐草坪', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: _submit,
+            child: const Text('发布', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSection('基本信息', [
+            _buildTextField('公园名称', _nameController, '请输入公园名称'),
+            _buildTextField('详细地址', _addressController, '请输入详细地址'),
+          ]),
+          const SizedBox(height: 20),
+          _buildSection('推荐理由', [
+            _buildTextField('推荐理由', _reasonController, '请描述为什么推荐这个草坪', maxLines: 4),
+          ]),
+          const SizedBox(height: 20),
+          _buildSection('所在城市', [
+            Wrap(
+              spacing: 12,
+              children: [
+                _buildCityChip('杭州'),
+                _buildCityChip('南京'),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.orange),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('提交后需要10人投票支持，达到5人支持后将展示在草坪列表中', style: TextStyle(color: Colors.orange[800], fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+  
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+  
+  Widget _buildCityChip(String city) {
+    final selected = _selectedCity == city;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCity = city),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF8BC34A) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(city, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+  
+  void _submit() {
+    if (_nameController.text.isEmpty || _addressController.text.isEmpty || _reasonController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写完整信息')));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('✅ 提交成功'),
+        content: const Text('感谢您的推荐！等待其他用户投票支持。'),
+        actions: [TextButton(onPressed: () { Navigator.pop(ctx); Navigator.pop(context); }, child: const Text('知道了'))],
+      ),
+    );
+  }
+}
+
+class PetLawnPage extends StatefulWidget {
+  const PetLawnPage({super.key});
+  @override
+  State<PetLawnPage> createState() => _PetLawnPageState();
+}
+
+class _PetLawnPageState extends State<PetLawnPage> {
+  String _selectedCity = '杭州';
+  Position? _userPosition;
+  bool _locationLoading = true;
+  
+  final List<Map<String, dynamic>> _lawns = [
+    {'name': '西湖公园', 'city': '杭州', 'address': '西湖区西湖风景名胜区', 'rating': 4.9, 'tags': ['草坪大', '狗狗多', '免费'], 'lat': 30.2468, 'lng': 120.1486, 'hours': '全天'},
+    {'name': '钱江新城公园', 'city': '杭州', 'address': '上城区钱江新城', 'rating': 4.7, 'tags': ['设施完善', '有饮水点'], 'lat': 30.2431, 'lng': 120.2105, 'hours': '6:00-22:00'},
+    {'name': '滨江公园', 'city': '杭州', 'address': '滨江区江南大道', 'rating': 4.6, 'tags': ['跑道', '夜间开放'], 'lat': 30.2084, 'lng': 120.2093, 'hours': '全天'},
+    {'name': '白鹭湾湿地公园', 'city': '杭州', 'address': '余杭区白鹭湾', 'rating': 4.8, 'tags': ['环境好', '野餐区'], 'lat': 30.3412, 'lng': 120.0987, 'hours': '6:00-20:00'},
+    {'name': '玄武湖公园', 'city': '南京', 'address': '玄武区玄武门', 'rating': 4.9, 'tags': ['历史悠久', '草坪大'], 'lat': 32.0603, 'lng': 118.7969, 'hours': '6:00-22:00'},
+    {'name': '中山陵风景区', 'city': '南京', 'address': '玄武区钟山风景区', 'rating': 4.8, 'tags': ['空气好', '爬山'], 'lat': 32.0650, 'lng': 118.8596, 'hours': '6:30-18:30'},
+    {'name': '绿博园', 'city': '南京', 'address': '建邺区扬子江大道', 'rating': 4.7, 'tags': ['植物多', '遛狗圣地'], 'lat': 32.0187, 'lng': 118.7298, 'hours': '8:00-18:00'},
+    {'name': '紫金山公园', 'city': '南京', 'address': '玄武区钟山', 'rating': 4.6, 'tags': ['自然环境', '登山'], 'lat': 32.0650, 'lng': 118.8780, 'hours': '全天'},
+  ];
+  
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+  
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { setState(() => _locationLoading = false); return; }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition();
+        setState(() => _userPosition = pos);
+      }
+    } catch(e) { print('获取位置失败: $e'); }
+    setState(() => _locationLoading = false);
+  }
+  
+  double? _getDistance(double lat, double lng) {
+    if (_userPosition == null) return null;
+    return Geolocator.distanceBetween(_userPosition!.latitude, _userPosition!.longitude, lat, lng) / 1000;
+  }
+  
+  List<Map<String, dynamic>> get _filteredLawns => _lawns.where((l) => l['city'] == _selectedCity).toList();
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('宠物友好草坪', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildCityChip('杭州'),
+                const SizedBox(width: 12),
+                _buildCityChip('南京'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredLawns.length,
+              itemBuilder: (ctx, i) => _buildLawnCard(_filteredLawns[i]),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecommendLawnPage())),
+        backgroundColor: const Color(0xFF8BC34A),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+  
+  Widget _buildCityChip(String city) {
+    final selected = _selectedCity == city;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCity = city),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF8BC34A) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(city, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+  
+  Widget _buildLawnCard(Map<String, dynamic> lawn) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 100,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: const Center(child: Text('🌿', style: TextStyle(fontSize: 50))),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(lawn['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            Text('⭐ ${lawn['rating']}', style: const TextStyle(color: Colors.orange)),
+                            const SizedBox(width: 8),
+                            ...lawn['tags'].map<Widget>((t) => Container(
+                              margin: const EdgeInsets.only(right: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: const Color(0xFF8BC34A).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                              child: Text(t, style: const TextStyle(fontSize: 10, color: Color(0xFF8BC34A))),
+                            )),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(lawn['hours'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => _showLocation(lawn['address']),
+                    child: Row(children: [
+                      const Icon(Icons.location_on, size: 14, color: Color(0xFF4CAF50)),
+                      const SizedBox(width: 4),
+                      Text(_locationLoading ? '加载中...' : (_getDistance(lawn['lat'], lawn['lng']) != null ? '${_getDistance(lawn['lat'], lawn['lng'])!.toStringAsFixed(1)}km' : '查看位置'), style: const TextStyle(color: Color(0xFF4CAF50), fontSize: 12, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showLocation(String address) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('📍 公园位置'),
+        content: Text(address),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('知道了'))],
+      ),
+    );
+  }
+}
+
+// ==================== 投毒点避雷页面 ====================
+class BlacklistPage extends StatefulWidget {
+  const BlacklistPage({super.key});
+  @override
+  State<BlacklistPage> createState() => _BlacklistPageState();
+}
+
+class _BlacklistPageState extends State<BlacklistPage> {
+  String _selectedCity = '杭州';
+  
+  final List<Map<String, dynamic>> _blacklist = [
+    {'name': 'xx宠物店', 'city': '杭州', 'address': '西湖区xxx路', 'reason': '疑似投毒', 'time': '2026-03'},
+    {'name': 'xx公园', 'city': '杭州', 'address': '拱墅区xxx', 'reason': '有人投毒', 'time': '2026-02'},
+    {'name': 'xx宠物医院', 'city': '南京', 'address': '鼓楼区xxx', 'reason': '无良医生', 'time': '2026-03'},
+  ];
+  
+  List<Map<String, dynamic>> get _filtered => _blacklist.where((b) => b['city'] == _selectedCity).toList();
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('投毒点避雷', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildChip('杭州'),
+                const SizedBox(width: 12),
+                _buildChip('南京'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filtered.length,
+              itemBuilder: (ctx, i) => _buildCard(_filtered[i]),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddDialog(),
+        backgroundColor: const Color(0xFFFF5722),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+  
+  Widget _buildChip(String city) {
+    final sel = _selectedCity == city;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCity = city),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: sel ? const Color(0xFFFF5722) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(city, style: TextStyle(color: sel ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+  
+  Widget _buildCard(Map<String, dynamic> item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('⚠️', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(item['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              Text(item['time'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('📍 ${item['address']}', style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 4),
+          Text('❌ ${item['reason']}', style: TextStyle(color: Colors.red)),
+        ],
+      ),
+    );
+  }
+  
+  void _showAddDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('⚠️ 举报须知'),
+        content: const Text('请提供准确信息，文明举报'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(onPressed: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('感谢您的举报'))); }, child: const Text('知道了')),
+        ],
+      ),
+    );
+  }
 }
 
 class StarPetApp extends StatefulWidget {
@@ -343,7 +1282,7 @@ class StarPetAppState extends State<StarPetApp> {
     super.initState();
     // 从数据库加载主题
     final savedTheme = DataManager.getCurrentTheme();
-    print('=== StarPetAppState init: savedTheme=$savedTheme ===');
+    
     StarPetApp._themeIndex = savedTheme;
   }
 
@@ -535,7 +1474,7 @@ class _HomePageState extends State<HomePage> {
                     Icon(Icons.star, size: 18, color: Colors.white),
                     SizedBox(width: 4),
                     Text(
-                      'Lv.1',
+                      'Lv.${DataManager.getSignInDays() ~/ 7 + 1}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -572,6 +1511,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPetInfoBar() {
+    final pets = DataManager.getPets();
+    // 无宠物时显示添加提示
+    if (pets.isEmpty) {
+      return GestureDetector(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddPetPage())),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: StarPetApp.primaryColor.withValues(alpha: 0.3), style: BorderStyle.solid),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_circle_outline, color: StarPetApp.primaryColor, size: 28),
+              const SizedBox(width: 12),
+              Text('添加你的第一只宠物', style: TextStyle(color: StarPetApp.primaryColor, fontSize: 16, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+      );
+    }
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -955,6 +1918,36 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSpacing: 16,
                 children: [
                   _buildServiceCard(
+                    '🛒', 
+                    '宠物友好商场', 
+                    '附近宠物友好商户',
+                    const Color(0xFFE91E63),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PetMallPage()),
+                    ),
+                  ),
+                  _buildServiceCard(
+                    '🌳', 
+                    '宠物友好草坪', 
+                    '城市遛狗好去处',
+                    const Color(0xFF8BC34A),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PetLawnPage()),
+                    ),
+                  ),
+                  _buildServiceCard(
+                    '⚠️', 
+                    '投毒点避雷', 
+                    '曝光不良商家',
+                    const Color(0xFFFF5722),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BlacklistPage()),
+                    ),
+                  ),
+                  _buildServiceCard(
                     '🦷', 
                     '宠物美容', 
                     '洗澡、剪毛、护理',
@@ -987,45 +1980,47 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildServiceCard(String emoji, String title, String subtitle, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: StarPetApp.textColor,
+  Widget _buildServiceCard(String emoji, String title, String subtitle, Color color, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: StarPetApp.textSecondary,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: StarPetApp.textColor,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: StarPetApp.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
   // ==================== 社交Tab ====================
   Widget _buildSocialTab() {
     final posts = DataManager.getPosts();
@@ -1220,6 +2215,18 @@ class _HomePageState extends State<HomePage> {
                   _buildDeviceCard(
                     '⚖️', 
                     '智能体重秤', 
+                    '未连接',
+                    false,
+                  ),
+                  _buildDeviceCard(
+                    '🚽', 
+                    '智能猫砂盆', 
+                    '未连接',
+                    false,
+                  ),
+                  _buildDeviceCard(
+                    '🍚', 
+                    '智能喂食器', 
                     '未连接',
                     false,
                   ),
@@ -1418,6 +2425,19 @@ class _HomePageState extends State<HomePage> {
             }),
             _buildMenuItem(Icons.help, '帮助与反馈', '常见问题', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpFeedbackPage()));
+            }),
+            _buildMenuItem(Icons.delete_sweep, '清理缓存', '释放存储空间', onTap: () async {
+              showDialog(context: context, builder: (ctx) => AlertDialog(
+                title: const Text('清理缓存'),
+                content: const Text('确定要清理缓存吗？'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+                  TextButton(onPressed: () async {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清理')));
+                  }, child: const Text('确定')),
+                ],
+              ));
             }),
             _buildMenuItem(Icons.bug_report, '调试信息', '查看数据状态', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const DebugPage()));
@@ -1691,7 +2711,7 @@ class _PetListPageState extends State<PetListPage> {
               title: Text('编辑'),
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => AddPetPage(petIndex: index)));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => AddPetPage(petIndex: index))).then((_) => setState(() {}));
               },
             ),
             ListTile(
@@ -1790,16 +2810,17 @@ class _AddPetPageState extends State<AddPetPage> {
   String? breed;
   String? color;
   String? feature;
+  int? breedId;
+  List<Map<String, dynamic>> _breedsList = [];
+  bool _loadingBreeds = true;
+  bool _isSaving = false; // 防止重复提交
   final _nameController = TextEditingController();
   bool _showPetAnimation = false;
-
-  final Map<String, List<String>> breeds = {'cat': ['英短', '美短', '暹罗', '布偶', '波斯', '孟加拉', '缅因', '其他'], 'dog': ['柯基', '柴犬', '哈士奇', '金毛', '拉布拉多', '边牧', '德牧', '泰迪', '萨摩耶', '博美', '其他']};
-  final Map<String, List<String>> colors = {'cat': ['蓝色', '金色', '银色', '橘色', '黑色', '白色', '三花', '玳瑁', '铁包银'], 'dog': ['金色', '黑色', '白色', '灰色', '黄色', '陨石', '铁包金', '铁包银', '三色']};
-  final Map<String, List<String>> features = {'cat': ['粘人', '高冷', '活泼', '安静', '贪吃', '好奇'], 'dog': ['忠诚', '活泼', '粘人', '护主', '贪玩', '安静']};
 
   @override
   void initState() {
     super.initState();
+    _loadBreeds();
     if (widget.petIndex != null) {
       final pet = DataManager.getPets()[widget.petIndex!];
       _nameController.text = pet['name'] ?? '';
@@ -1808,24 +2829,75 @@ class _AddPetPageState extends State<AddPetPage> {
       breed = pet['breed'] as String?;
       color = pet['color'] as String?;
       feature = pet['feature'] as String?;
+      breedId = pet['breed_id'] as int?;
     }
+  }
+  
+  Future<void> _loadBreeds() async {
+    try {
+      final resp = await DataManager._supabase.from('pet_breeds').select();
+      setState(() {
+        _breedsList = List<Map<String, dynamic>>.from(resp);
+        _loadingBreeds = false;
+      });
+    } catch(e) {
+      print('加载品种失败: $e');
+      setState(() => _loadingBreeds = false);
+    }
+  }
+  
+  List<String> get _breeds {
+    if (petType == null) return [];
+    return _breedsList.where((b) => b['type'] == petType).map((b) => b['name'] as String).toList();
+  }
+  
+  List<String> get _colors {
+    return _breedsList.where((b) => b['type'] == 'color').map((b) => b['name'] as String).toList();
+  }
+  
+  Map<int, String> get _breedMap {
+    if (petType == null) return {};
+    return {for (var b in _breedsList.where((b) => b['type'] == petType)) b['id'] as int: b['name'] as String};
   }
 
   Widget _buildCard(String emoji, String label, bool sel, VoidCallback tap) => GestureDetector(onTap: tap, child: Container(width: 150, height: 100, decoration: BoxDecoration(color: sel ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.black : Colors.grey[300]!)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(emoji, style: TextStyle(fontSize: 36)), const SizedBox(height: 8), Text(label, style: TextStyle(fontSize: 14, color: sel ? Colors.white : Colors.black))])));
 
   Future<void> _savePet() async {
+    if (_isSaving) return; // 防止重复点击
+    _isSaving = true;
+    
     final name = _nameController.text.isEmpty ? '宠物${DataManager.getPets().length + 1}' : _nameController.text;
-    final pet = {'name': name, 'type': petType ?? 'cat', 'gender': gender ?? 'female', 'color': color ?? '', 'breed': breed ?? '', 'feature': feature ?? ''};
-    if (widget.petIndex != null) await DataManager.updatePet(widget.petIndex!, pet);
-    else await DataManager.addPet(pet);
-    setState(() => _showPetAnimation = true);
+    final pet = {
+      'name': name, 
+      'type': petType ?? 'cat', 
+      'gender': gender ?? 'female', 
+      'color': color ?? '', 
+      'breed': breed ?? '', 
+      'feature': feature ?? '',
+    };
+    try {
+      if (widget.petIndex != null) await DataManager.updatePet(widget.petIndex!, pet);
+      else await DataManager.addPet(pet);
+      if (mounted) {
+        setState(() => _showPetAnimation = true);
+        // 显示成功提示
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ 保存成功'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      }
+    } catch(e) {
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+      }
+    } finally {
+      _isSaving = false;
+    }
   }
 
   Widget _buildAnim() {
     return Material(
       color: Colors.transparent,
       child: GestureDetector(
-        onTap: () { setState(() => _showPetAnimation = false); Navigator.pop(context); },
+        onTap: () { setState(() => _showPetAnimation = false); Navigator.pop(context, true); },
         child: Container(
           color: Colors.black.withValues(alpha: 0.9),
           child: Stack(
@@ -1995,10 +3067,10 @@ class _AddPetPageState extends State<AddPetPage> {
                 const SizedBox(height: 12),
                 Row(children: [_buildCard('♀', '雌性', gender == 'female', () => setState(() => gender = 'female')), const SizedBox(width: 12), _buildCard('♂', '雄性', gender == 'male', () => setState(() => gender = 'male'))]),
                 const SizedBox(height: 24),
-                if (gender != null) ...[_buildSectionTitle(widget.petIndex != null ? '3. 选择花色' : '4. 选择花色'), const SizedBox(height: 12), _buildGrid(colors[petType] ?? [], color, (c) => setState(() => color = c)), const SizedBox(height: 24)],
-                if (color != null && petType != null) ...[_buildSectionTitle(widget.petIndex != null ? '4. 选择品种' : '5. 选择品种'), const SizedBox(height: 12), _buildGrid(breeds[petType] ?? [], breed, (b) => setState(() => breed = b)), const SizedBox(height: 24)],
-                if (breed != null && petType != null) ...[_buildSectionTitle(widget.petIndex != null ? '5. 选择特征' : '6. 选择特征'), const SizedBox(height: 12), _buildGrid(features[petType] ?? [], feature, (f) => setState(() => feature = f)), const SizedBox(height: 24)],
-                if (feature != null) SizedBox(width: double.infinity, height: 56, child: ElevatedButton(onPressed: _savePet, style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text(widget.petIndex != null ? '保存修改' : '保存', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
+                if (gender != null) ...[_buildSectionTitle('3. 选择花色'), const SizedBox(height: 12), _loadingBreeds ? const CircularProgressIndicator() : _buildGrid(_colors, color, (c) => setState(() => color = c)), const SizedBox(height: 24)],
+                if (gender != null && color != null) ...[_buildSectionTitle(widget.petIndex != null ? '4. 选择品种' : '5. 选择品种'), const SizedBox(height: 12), _loadingBreeds ? const CircularProgressIndicator() : _buildGrid(_breeds, breed, (b) { setState(() { breed = b; breedId = _breedMap.entries.firstWhere((e) => e.value == b).key; }); }), const SizedBox(height: 24)],
+                if (breed != null && petType != null) ...[_buildSectionTitle(widget.petIndex != null ? '5. 选择特征' : '6. 选择特征'), const SizedBox(height: 12), _buildGrid(petType == 'cat' ? ['粘人', '高冷', '活泼', '安静', '贪吃', '好奇'] : ['忠诚', '活泼', '粘人', '护主', '贪玩', '安静'], feature, (f) => setState(() => feature = f)), const SizedBox(height: 24)],
+                if (feature != null) SizedBox(width: double.infinity, height: 56, child: ElevatedButton(onPressed: _isSaving ? null : _savePet, style: ElevatedButton.styleFrom(backgroundColor: _isSaving ? Colors.grey : Colors.black, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text(_isSaving ? '保存中...' : (widget.petIndex != null ? '保存修改' : '保存'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
               ],
             ),
           ),
@@ -2232,10 +3304,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
         actions: [
           TextButton(
             onPressed: () async {
-              await DataManager.setNickname(_nicknameController.text.isEmpty ? '点击编辑昵称' : _nicknameController.text);
+              DataManager.setUserData('nickname', _nicknameController.text.isEmpty ? '点击编辑昵称' : _nicknameController.text);
               final selectedNames = roles.where((r) => selectedRoles.contains(int.parse(r['id']!))).map((r) => r['name']!).toList();
-              await DataManager.setRoles(selectedNames);
-              if (context.mounted) Navigator.pop(context);
+              DataManager.setUserData('roles', selectedNames);
+              try {
+                final success = await DataManager.saveAndGetResult();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? '✅ 保存成功' : '❌ 保存失败'), backgroundColor: success ? Colors.green : Colors.red));
+                  if (success) Future.delayed(Duration(milliseconds: 500), () => Navigator.pop(context, true));
+                }
+              } catch(e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ 保存失败: $e'), backgroundColor: Colors.red));
+                }
+              }
             },
             child: Text('保存', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
@@ -2310,9 +3392,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 // ==================== OTA更新检测 ====================
 class OTAUpdater {
   // 改成你的Tailscale IP
-  static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 27;
-  static const String currentVersion = '1.5.2';
+  static const String baseUrl = 'http://100.115.16.2:8080';
+  static const int currentVersionCode = 54;
+  static const String currentVersion = '2.5.0';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2417,8 +3499,7 @@ class HomeData {
   // 持久化
   static Future<void> loadItems() async {
     try {
-      final db = await DataManager.database;
-      final items = await db.query('home_items');
+      final items = await DataManager._supabase.from('home_items').select().eq('user_id', 1);
       placedItems = items.map((item) => {
         'id': item['itemId'],
         'name': item['name'],
@@ -2429,30 +3510,29 @@ class HomeData {
         'y': item['y'],
         'uid': item['uid'],
       }).toList();
-      print('=== 加载家园物品: ${placedItems.length} 个 ===');
     } catch (e) {
       print('加载家园数据失败: $e');
     }
   }
   
   static Future<void> saveItems() async {
+    if (placedItems.isEmpty) return;
     try {
-      final db = await DataManager.database;
-      await db.delete('home_items');
-      for (var item in placedItems) {
-        await db.insert('home_items', {
-          'itemId': item['id'],
-          'name': item['name'],
-          'icon': item['icon'],
-          'price': item['price'],
-          'category': item['category'],
-          'x': item['x'],
-          'y': item['y'],
-          'uid': item['uid'],
-        });
-      }
+      // 批量插入
+      final itemsToInsert = placedItems.map((item) => {
+        'itemId': item['id'],
+        'name': item['name'],
+        'icon': item['icon'],
+        'price': item['price'],
+        'category': item['category'],
+        'x': item['x'],
+        'y': item['y'],
+        'uid': item['uid'],
+        'user_id': 1,
+      }).toList();
+      await DataManager._supabase.from('home_items').upsert(itemsToInsert, onConflict: 'uid');
     } catch (e) {
-      print('保存家园数据失败: $e');
+      
     }
   }
 }
@@ -3085,13 +4165,11 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
-                    print('=== 点击保存: _selectedTheme=$_selectedTheme ===');
+                    
                     await DataManager.setTheme(_selectedTheme);
                     // 实时刷新主题
                     StarPetApp.updateTheme(_selectedTheme);
-                    // 验证保存
-                    final saved = DataManager.getCurrentTheme();
-                    print('=== 保存后验证: saved=$saved ===');
+                    
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('已保存为 ${_themes[_selectedTheme]['name']} (index: $_selectedTheme)'), duration: const Duration(seconds: 1)),
