@@ -76,6 +76,7 @@ class DataManager {
         // 加载主题
         _currentThemeIndex = (user['theme'] as int?) ?? 0;
         _userData['theme'] = _currentThemeIndex;
+        print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
       // 加载宠物数据
       final petsList = await db.query('pets');
@@ -100,6 +101,7 @@ class DataManager {
         where: 'id = ?',
         whereArgs: [1],
       );
+      print('=== 保存主题到数据库: $_currentThemeIndex ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -192,6 +194,7 @@ class StarPetAppState extends State<StarPetApp> {
     super.initState();
     // 从数据库加载主题
     final savedTheme = DataManager.getCurrentTheme();
+    print('=== StarPetAppState init: savedTheme=$savedTheme ===');
     StarPetApp._themeIndex = savedTheme;
   }
 
@@ -2768,7 +2771,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
             const SizedBox(height: 20),
             Text('星宠', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('版本 ${OTAUpdater.currentVersionCode <= 9 ? '1.0.' + OTAUpdater.currentVersionCode.toString() : '1.0.' + OTAUpdater.currentVersionCode.toString()}', style: TextStyle(color: Colors.grey)),
+            Text('版本 ${OTAUpdater.currentVersionCode <= 9 ? '1.0.' + OTAUpdater.currentVersionCode.toString() : '1.0.' + OTAUpdater.currentVersionCode.toString()} | 主题: ${StarPetApp.currentThemeIndex}', style: TextStyle(color: Colors.grey)),
             if (_hasUpdate) ...[
               const SizedBox(height: 8),
               GestureDetector(
