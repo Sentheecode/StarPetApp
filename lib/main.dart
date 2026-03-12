@@ -52,7 +52,7 @@ class DataManager {
           )
         ''');
         // 初始化用户数据
-        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 0});
+        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1});
       },
     );
   }
@@ -76,7 +76,7 @@ class DataManager {
         // 加载主题
         final themeFromDb = user['theme'];
         print('=== DB中theme字段: $themeFromDb (类型: ${themeFromDb.runtimeType}) ===');
-        _currentThemeIndex = (themeFromDb as int?) ?? 0;
+        _currentThemeIndex = (themeFromDb as int?) ?? 1;
         _userData['theme'] = _currentThemeIndex;
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
@@ -143,7 +143,7 @@ class DataManager {
   static void addPost(Map<String, dynamic> post) => _postsData.insert(0, post);
   
   // 主题相关
-  static int _currentThemeIndex = 0;
+  static int _currentThemeIndex = 1;
   static int getCurrentTheme() => _currentThemeIndex;
   static Future<void> setTheme(int index) async { _currentThemeIndex = index; await _saveData(); }
 }
@@ -169,7 +169,7 @@ class StarPetApp extends StatefulWidget {
     {'name': '暗黑模式', 'primary': Color(0xFF1C1C1E), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFF000000), 'text': Color(0xFFFFFFFF), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFF1C1C1E), 'groundBottom': Color(0xFF2C2C2E), 'skyTop': Color(0xFF000000), 'skyBottom': Color(0xFF1C1C1E)},
   ];
   
-  static int _themeIndex = 0;
+  static int _themeIndex = 1;
   static int get currentThemeIndex => _themeIndex;
   static Color get primaryColor => themes[_themeIndex]['primary'];
   static Color get secondaryColor => themes[_themeIndex]['secondary'];
