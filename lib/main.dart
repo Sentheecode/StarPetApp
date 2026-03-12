@@ -37,7 +37,11 @@ class DataManager {
             id INTEGER PRIMARY KEY,
             nickname TEXT,
             roles TEXT,
-            theme INTEGER DEFAULT 0
+            theme INTEGER DEFAULT 1,
+            coins INTEGER DEFAULT 1000,
+            lastSignIn TEXT,
+            signInDays INTEGER DEFAULT 0,
+            achievements TEXT
           )
         ''');
         await db.execute('''
@@ -52,7 +56,7 @@ class DataManager {
           )
         ''');
         // 初始化用户数据
-        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1});
+        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1, 'coins': 1000, 'lastSignIn': '', 'signInDays': 0, 'achievements': ''});
       },
     );
   }
@@ -78,6 +82,10 @@ class DataManager {
         print('=== DB中theme字段: $themeFromDb (类型: ${themeFromDb.runtimeType}) ===');
         _currentThemeIndex = (themeFromDb as int?) ?? 1;
         _userData['theme'] = _currentThemeIndex;
+        // 加载金币、签到数据
+        _userData['coins'] = user['coins'] ?? 1000;
+        _userData['lastSignIn'] = user['lastSignIn'] ?? '';
+        _userData['signInDays'] = user['signInDays'] ?? 0;
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
       // 加载宠物数据
@@ -99,6 +107,9 @@ class DataManager {
           'nickname': _userData['nickname'] ?? '点击编辑昵称',
           'roles': (_userData['roles'] as List<String>).join(','),
           'theme': _currentThemeIndex,
+          'coins': _userData['coins'] ?? 1000,
+          'lastSignIn': _userData['lastSignIn'] ?? '',
+          'signInDays': _userData['signInDays'] ?? 0,
         },
         where: 'id = ?',
         whereArgs: [1],
@@ -146,6 +157,64 @@ class DataManager {
   static int _currentThemeIndex = 1;
   static int getCurrentTheme() => _currentThemeIndex;
   static Future<void> setTheme(int index) async { _currentThemeIndex = index; await _saveData(); }
+  
+  // 金币相关
+  static int getCoins() => _userData['coins'] as int? ?? 1000;
+  static Future<void> addCoins(int amount) async { _userData['coins'] = (getCoins() + amount); await _saveData(); }
+  
+  // 签到相关
+  static String getLastSignIn() => _userData['lastSignIn'] as String? ?? '';
+  static int getSignInDays() => _userData['signInDays'] as int? ?? 0;
+  static bool canSignIn() {
+    final last = getLastSignIn();
+    if (last.isEmpty) return true;
+    final lastDate = DateTime.tryParse(last);
+    if (lastDate == null) return true;
+    final now = DateTime.now();
+    return now.difference(lastDate).inDays >= 1;
+  }
+  static Future<Map<String, dynamic>> signIn() async {
+    if (!canSignIn()) {
+      return {'success': false, 'message': '今天已签到'};
+    }
+    final days = getSignInDays() + 1;
+    int coins = 10 + days * 5; // 基础10 + 连续天数奖励
+    if (days == 7) coins += 100; // 连续7天奖励
+    if (days == 30) coins += 500; // 连续30天奖励
+    
+    _userData['lastSignIn'] = DateTime.now().toString().substring(0, 10);
+    _userData['signInDays'] = days;
+    _userData['coins'] = getCoins() + coins;
+    await _saveData();
+    
+    return {'success': true, 'days': days, 'coins': coins, 'bonus': days == 7 ? 100 : (days == 30 ? 500 : 0)};
+  }
+  
+  // 成就系统
+  static List<Map<String, dynamic>> getAchievements() {
+    final achievements = [
+      {'id': 'first_pet', 'name': '初遇', 'desc': '添加第一只宠物', 'icon': '🐾', 'unlocked': false},
+      {'id': 'two_pets', 'name': '双倍快乐', 'desc': '拥有两只宠物', 'icon': '🐾🐾', 'unlocked': false},
+      {'id': 'rich', 'name': '小富翁', 'desc': '拥有1000金币', 'icon': '💰', 'unlocked': false},
+      {'id': 'big_rich', 'name': '大富翁', 'desc': '拥有5000金币', 'icon': '💎', 'unlocked': false},
+      {'id': 'sign_7', 'name': '坚持不懈', 'desc': '连续签到7天', 'icon': '📅', 'unlocked': false},
+      {'id': 'sign_30', 'name': '签到达人', 'desc': '连续签到30天', 'icon': '🏆', 'unlocked': false},
+      {'id': 'first_post', 'name': '社交达人', 'desc': '发布第一条动态', 'icon': '📱', 'unlocked': false},
+      {'id': 'home_owner', 'name': '房主', 'desc': '购买第一件家具', 'icon': '🏠', 'unlocked': false},
+    ];
+    
+    // 根据数据解锁成就
+    if (_petsData.isNotEmpty) achievements[0]['unlocked'] = true;
+    if (_petsData.length >= 2) achievements[1]['unlocked'] = true;
+    if (getCoins() >= 1000) achievements[2]['unlocked'] = true;
+    if (getCoins() >= 5000) achievements[3]['unlocked'] = true;
+    if (getSignInDays() >= 7) achievements[4]['unlocked'] = true;
+    if (getSignInDays() >= 30) achievements[5]['unlocked'] = true;
+    if (_postsData.isNotEmpty) achievements[6]['unlocked'] = true;
+    if (HomeData.placedItems.isNotEmpty) achievements[7]['unlocked'] = true;
+    
+    return achievements;
+  }
 }
 
 void main() async {
@@ -1257,6 +1326,12 @@ class _HomePageState extends State<HomePage> {
             _buildMenuItem(Icons.home, '我的家园', '查看/编辑家园', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeEditPage()));
             }),
+            _buildMenuItem(Icons.calendar_today, '每日签到', '领取金币奖励', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInPage()));
+            }),
+            _buildMenuItem(Icons.emoji_events, '成就徽章', '查看成就进度', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AchievementsPage()));
+            }),
             _buildMenuItem(Icons.settings, '主题设置', '切换主题风格', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const ThemeSettingsPage()));
             }),
@@ -2287,7 +2362,7 @@ class _HomeEditPageState extends State<HomeEditPage> {
             child: Row(children: [
               const Text('🪙', style: TextStyle(fontSize: 16)),
               const SizedBox(width: 4),
-              Text('${HomeData.coins}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[800])),
+              Text('${DataManager.getCoins()}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[800])),
             ]),
           ),
         ],
@@ -2420,7 +2495,7 @@ class _HomeEditPageState extends State<HomeEditPage> {
             itemCount: HomeData.furniture.length,
             itemBuilder: (context, index) {
               final item = HomeData.furniture[index];
-              final canAfford = HomeData.coins >= item['price'];
+              final canAfford = DataManager.getCoins() >= item['price'];
               return GestureDetector(
                 onTap: canAfford ? () => _buyItem(item) : null,
                 child: Container(
@@ -2445,13 +2520,13 @@ class _HomeEditPageState extends State<HomeEditPage> {
   }
   
   void _buyItem(Map<String, dynamic> item) {
-    if (HomeData.coins < item['price']) {
+    if (DataManager.getCoins() < item['price']) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('金币不足！')));
       return;
     }
     
     setState(() {
-      HomeData.coins -= (item['price'] as int);
+      DataManager.addCoins(-(item['price'] as int));
       // 默认放在中间位置
       final idx = HomeData.placedItems.length;
       HomeData.addItem(item, 150.0 + (idx % 3) * 60, 200.0 + (idx ~/ 3) * 60);
@@ -2479,6 +2554,229 @@ class _HomeEditPageState extends State<HomeEditPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ==================== 签到页面 ====================
+class SignInPage extends StatefulWidget {
+  const SignInPage({super.key});
+  @override
+  State<SignInPage> createState() => _SignInPageState();
+}
+
+class _SignInPageState extends State<SignInPage> {
+  @override
+  Widget build(BuildContext context) {
+    final canSignIn = DataManager.canSignIn();
+    final signInDays = DataManager.getSignInDays();
+    final lastSignIn = DataManager.getLastSignIn();
+    final coins = DataManager.getCoins();
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('每日签到', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // 金币显示
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [Colors.amber[400]!, Colors.amber[600]!]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 30)),
+                  const SizedBox(width: 10),
+                  Text('$coins', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // 签到卡片
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: Column(
+                children: [
+                  Text('连续签到', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('$signInDays', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.orange)),
+                      const Text(' 天', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (lastSignIn.isNotEmpty)
+                    Text('上次签到: $lastSignIn', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: canSignIn ? () async {
+                        final result = await DataManager.signIn();
+                        if (result['success'] && mounted) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('签到成功! 🎉'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('+${result['coins']} 金币', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.amber)),
+                                  if (result['bonus'] > 0) Text('+${result['bonus']} 连续签到奖励!', style: const TextStyle(color: Colors.red)),
+                                  Text('连续 ${result['days']} 天', style: TextStyle(color: Colors.grey[600])),
+                                ],
+                              ),
+                              actions: [TextButton(onPressed: () { Navigator.pop(ctx); }, child: const Text('确定'))],
+                            ),
+                          );
+                          setState(() {});
+                        }
+                      } : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: canSignIn ? Colors.green : Colors.grey,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text(canSignIn ? '立即签到' : '明天再来', style: const TextStyle(fontSize: 18, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // 签到奖励说明
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('签到奖励', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 15),
+                  _buildRewardItem('基础奖励', '10 + 连续天数 × 5 金币'),
+                  _buildRewardItem('连续7天', '额外 100 金币'),
+                  _buildRewardItem('连续30天', '额外 500 金币'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildRewardItem(String title, String desc) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      children: [
+        Text('• ', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        const Spacer(),
+        Text(desc, style: TextStyle(color: Colors.grey[500])),
+      ],
+    ),
+  );
+}
+
+// ==================== 成就页面 ====================
+class AchievementsPage extends StatelessWidget {
+  const AchievementsPage({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    final achievements = DataManager.getAchievements();
+    final unlocked = achievements.where((a) => a['unlocked'] == true).length;
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('成就', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          // 进度条
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('成就进度', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('$unlocked / ${achievements.length}', style: const TextStyle(fontSize: 16, color: Colors.orange)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: unlocked / achievements.length,
+                    minHeight: 10,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation(Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 成就列表
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+              itemCount: achievements.length,
+              itemBuilder: (context, index) {
+                final ach = achievements[index];
+                final isUnlocked = ach['unlocked'] == true;
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isUnlocked ? Colors.white : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(16),
+                    border: isUnlocked ? Border.all(color: Colors.orange, width: 2) : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(ach['icon'], style: TextStyle(fontSize: 32, color: isUnlocked ? null : Colors.grey)),
+                      const SizedBox(height: 8),
+                      Text(ach['name'], style: TextStyle(fontWeight: FontWeight.bold, color: isUnlocked ? Colors.black : Colors.grey)),
+                      const SizedBox(height: 4),
+                      Text(ach['desc'], style: TextStyle(fontSize: 11, color: Colors.grey[500]), textAlign: TextAlign.center),
+                      if (isUnlocked) ...[
+                        const SizedBox(height: 4),
+                        const Text('✅ 已完成', style: TextStyle(fontSize: 10, color: Colors.green)),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
