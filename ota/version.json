@@ -1,7 +1,7 @@
 {
-  "version": "1.4.8",
-  "versionCode": 23,
-  "releaseNote": "使用 delete+insert 方式保存",
+  "version": "1.4.9",
+  "versionCode": 24,
+  "releaseNote": "使用kv_store存储额外数据",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

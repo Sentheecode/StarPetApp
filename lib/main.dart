@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart' show Database;
+import 'package:sqflite/sqflite.dart' show Database, ConflictAlgorithm;
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
@@ -30,18 +30,14 @@ class DataManager {
     
     return await sqflite.openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE user(
             id INTEGER PRIMARY KEY,
             nickname TEXT,
             roles TEXT,
-            theme INTEGER DEFAULT 1,
-            coins INTEGER DEFAULT 1000,
-            lastSignIn TEXT,
-            signInDays INTEGER DEFAULT 0,
-            achievements TEXT
+            theme INTEGER DEFAULT 1
           )
         ''');
         await db.execute('''
@@ -56,7 +52,14 @@ class DataManager {
           )
         ''');
         // 初始化用户数据
-        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1, 'coins': 1000, 'lastSignIn': '', 'signInDays': 0, 'achievements': ''});
+        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1});
+        // 简单键值表（用于存储额外数据）
+        await db.execute('''
+          CREATE TABLE kv_store(
+            key TEXT PRIMARY KEY,
+            value TEXT
+          )
+        ''');
         // 家园表
         await db.execute('''
           CREATE TABLE home_items(
@@ -73,30 +76,13 @@ class DataManager {
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
+        if (oldVersion < 3) {
+          // 创建键值表
           try {
-            // 尝试添加新字段（如果已存在会忽略）
-            await db.rawQuery("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000");
-          } catch(e) {}
-          try {
-            await db.rawQuery("ALTER TABLE user ADD COLUMN lastSignIn TEXT");
-          } catch(e) {}
-          try {
-            await db.rawQuery("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0");
-          } catch(e) {}
-          try {
-            // 创建家园表
             await db.execute('''
-              CREATE TABLE IF NOT EXISTS home_items(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemId INTEGER,
-                name TEXT,
-                icon TEXT,
-                price INTEGER,
-                category TEXT,
-                x REAL,
-                y REAL,
-                uid INTEGER
+              CREATE TABLE IF NOT EXISTS kv_store(
+                key TEXT PRIMARY KEY,
+                value TEXT
               )
             ''');
           } catch(e) {}
@@ -127,23 +113,12 @@ class DataManager {
         print('=== DB中theme字段: $themeFromDb (类型: ${themeFromDb.runtimeType}) ===');
         _currentThemeIndex = (themeFromDb as int?) ?? 1;
         _userData['theme'] = _currentThemeIndex;
-        // 加载金币、签到数据
-        final coinsVal = user['coins'];
-        final lastSignInVal = user['lastSignIn'];
-        final signInDaysVal = user['signInDays'];
+        // 从 kv_store 加载金币、签到数据
+        _userData['coins'] = int.tryParse(await _getKv('coins', '1000')) ?? 1000;
+        _userData['lastSignIn'] = await _getKv('lastSignIn', '');
+        _userData['signInDays'] = int.tryParse(await _getKv('signInDays', '0')) ?? 0;
         
-        print('=== DB原始值: coins=$coinsVal, lastSignIn=$lastSignInVal, signInDays=$signInDaysVal ===');
-        
-        if (coinsVal != null) {
-          _userData['coins'] = coinsVal is int ? coinsVal : int.tryParse(coinsVal.toString()) ?? 1000;
-        } else {
-          _userData['coins'] = 1000;
-        }
-        
-        _userData['lastSignIn'] = lastSignInVal?.toString() ?? '';
-        _userData['signInDays'] = signInDaysVal is int ? signInDaysVal : int.tryParse(signInDaysVal?.toString() ?? '0') ?? 0;
-        
-        print('=== 从DB加载: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
+        print('=== 从KV加载: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
       // 加载宠物数据
@@ -159,23 +134,19 @@ class DataManager {
     try {
       final db = await database;
       
-      // 先确保字段存在
-      try { await db.rawQuery("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000"); } catch(e) {}
-      try { await db.rawQuery("ALTER TABLE user ADD COLUMN lastSignIn TEXT DEFAULT ''"); } catch(e) {}
-      try { await db.rawQuery("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0"); } catch(e) {}
-      
-      // 删除旧记录，插入新记录（和宠物保存方式一致）
+      // 保存到 user 表（只保存基本信息）
       await db.delete('user', where: 'id = ?', whereArgs: [1]);
       await db.insert('user', {
         'id': 1,
         'nickname': _userData['nickname'] ?? '点击编辑昵称',
         'roles': (_userData['roles'] as List<String>).join(','),
         'theme': _currentThemeIndex,
-        'coins': _userData['coins'] ?? 1000,
-        'lastSignIn': _userData['lastSignIn'] ?? '',
-        'signInDays': _userData['signInDays'] ?? 0,
       });
-      print('=== 保存到DB: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
+      // 保存金币、签到数据到 kv_store
+      await _setKv('coins', (_userData['coins'] ?? 1000).toString());
+      await _setKv('lastSignIn', _userData['lastSignIn'] ?? '');
+      await _setKv('signInDays', (_userData['signInDays'] ?? 0).toString());
+      print('=== 保存到KV: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -219,9 +190,32 @@ class DataManager {
   static int getCurrentTheme() => _currentThemeIndex;
   static Future<void> setTheme(int index) async { _currentThemeIndex = index; await _saveData(); }
   
+  // 键值存储辅助方法
+  static Future<void> _setKv(String key, String value) async {
+    try {
+      final db = await database;
+      await db.insert('kv_store', {'key': key, 'value': value}, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (e) {
+      print('保存kv失败: $key=$value, error=$e');
+    }
+  }
+  
+  static Future<String> _getKv(String key, String defaultValue) async {
+    try {
+      final db = await database;
+      final result = await db.query('kv_store', where: 'key = ?', whereArgs: [key]);
+      if (result.isNotEmpty) {
+        return result.first['value']?.toString() ?? defaultValue;
+      }
+    } catch (e) {
+      print('读取kv失败: $key, error=$e');
+    }
+    return defaultValue;
+  }
+  
   // 金币相关
   static int getCoins() => _userData['coins'] as int? ?? 1000;
-  static Future<void> addCoins(int amount) async { _userData['coins'] = (getCoins() + amount); await _saveData(); }
+  static Future<void> addCoins(int amount) async { _userData['coins'] = (getCoins() + amount); await _saveData(); await _setKv('coins', (_userData['coins'] ?? 1000).toString()); }
   
   // 签到相关
   static String getLastSignIn() => _userData['lastSignIn'] as String? ?? '';
@@ -2308,8 +2302,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 23;
-  static const String currentVersion = '1.4.8';
+  static const int currentVersionCode = 24;
+  static const String currentVersion = '1.4.9';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
