@@ -165,19 +165,24 @@ class DataManager {
       
       print('=== 保存到DB前: coins=$coins (${coins.runtimeType}), signInDays=$signInDays (${signInDays.runtimeType}) ===');
       
-      await db.update(
-        'user',
-        {
-          'nickname': _userData['nickname'] ?? '点击编辑昵称',
-          'roles': (_userData['roles'] as List<String>).join(','),
-          'theme': _currentThemeIndex,
-          'coins': coins is int ? coins : int.tryParse(coins.toString()) ?? 1000,
-          'lastSignIn': lastSignIn.toString(),
-          'signInDays': signInDays is int ? signInDays : int.tryParse(signInDays.toString()) ?? 0,
-        },
-        where: 'id = ?',
-        whereArgs: [1],
-      );
+      // 使用 rawQuery 直接更新，确保字段存在
+      await db.rawUpdate('''
+        UPDATE user SET 
+          nickname = ?,
+          roles = ?,
+          theme = ?,
+          coins = ?,
+          lastSignIn = ?,
+          signInDays = ?
+        WHERE id = 1
+      ''', [
+        _userData['nickname'] ?? '点击编辑昵称',
+        (_userData['roles'] as List<String>).join(','),
+        _currentThemeIndex,
+        coins is int ? coins : int.tryParse(coins.toString()) ?? 1000,
+        lastSignIn.toString(),
+        signInDays is int ? signInDays : int.tryParse(signInDays.toString()) ?? 0,
+      ]);
       print('=== 保存到DB: coins=$coins, signInDays=$signInDays, lastSignIn=$lastSignIn ===');
     } catch (e) {
       print('保存数据失败: $e');
@@ -2311,8 +2316,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 20;
-  static const String currentVersion = '1.4.5';
+  static const int currentVersionCode = 21;
+  static const String currentVersion = '1.4.6';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
