@@ -7,9 +7,11 @@ import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
+  static final _supabase = SupabaseClient('https://xitslotqqmxakthbvurd.supabase.co', '$SUPABASE_KEY');
   static Database? _database;
   static SharedPreferences? _prefs;
   static Map<String, dynamic> _userData = {'nickname': '点击编辑昵称', 'roles': <String>[]};
@@ -100,24 +102,23 @@ class DataManager {
   // 加载数据
   static Future<void> _loadData() async {
     try {
-      final db = await database;
-      // 从 user 表加载所有用户数据
-      final userList = await db.query('user', where: 'id = ?', whereArgs: [1]);
-      if (userList.isNotEmpty) {
-        final user = userList.first;
+      // 从 Supabase 加载用户数据
+      final response = await _supabase.from('user').select().eq('id', 1);
+      if (response.isNotEmpty) {
+        final user = response[0];
         _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
         final rolesStr = user['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
         _currentThemeIndex = user['theme'] as int? ?? 1;
-        _userData['theme'] = _currentThemeIndex;
         _userData['coins'] = user['coins'] ?? 1000;
         _userData['lastSignIn'] = user['lastSignIn'] ?? '';
         _userData['signInDays'] = user['signInDays'] ?? 0;
       }
       
-      print('=== 从user表加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      print('=== 从Supabase加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
       
-      // 加载宠物数据
+      // 加载宠物数据（本地 SQLite）
+      final db = await database;
       final petsList = await db.query('pets');
       _petsData = petsList.map((p) => Map<String, dynamic>.from(p)).toList();
     } catch (e) {
@@ -128,13 +129,6 @@ class DataManager {
   // 保存数据
   static Future<void> _saveData() async {
     try {
-      final db = await database;
-      
-      // 确保字段存在
-      try { await db.execute("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000"); } catch(e) {}
-      try { await db.execute("ALTER TABLE user ADD COLUMN lastSignIn TEXT"); } catch(e) {}
-      try { await db.execute("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0"); } catch(e) {}
-      
       final nickname = _userData['nickname'] ?? '点击编辑昵称';
       final roles = (_userData['roles'] as List<String>?)?.join(',') ?? '';
       final theme = _currentThemeIndex;
@@ -142,12 +136,10 @@ class DataManager {
       final lastSignIn = _userData['lastSignIn'] ?? '';
       final signInDays = _userData['signInDays'] ?? 0;
       
-      print('=== 保存前: nickname=$nickname, roles=$roles, theme=$theme, coins=$coins ===');
+      print('=== 保存到Supabase: nickname=$nickname, roles=$roles, theme=$theme, coins=$coins ===');
       
-      // 删除旧记录
-      await db.delete('user', where: 'id = ?', whereArgs: [1]);
-      // 插入新记录
-      await db.insert('user', {
+      // 保存到 Supabase
+      await _supabase.from('user').upsert({
         'id': 1,
         'nickname': nickname,
         'roles': roles,
@@ -156,7 +148,7 @@ class DataManager {
         'lastSignIn': lastSignIn,
         'signInDays': signInDays,
       });
-      print('=== 保存到user表成功 ===');
+      print('=== 保存到Supabase成功 ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -300,6 +292,11 @@ class DataManager {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 初始化 Supabase
+  await Supabase.initialize(
+    url: 'https://xitslotqqmxakthbvurd.supabase.co',
+    anonKey: '$SUPABASE_KEY',
+  );
   await DataManager.init();
   // 启动时检测更新
   OTAUpdater.checkUpdateOnStart();

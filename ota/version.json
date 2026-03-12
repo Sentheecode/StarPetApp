@@ -1,7 +1,7 @@
 {
-  "version": "1.5.5",
-  "versionCode": 30,
-  "releaseNote": "用SharedPreferences存储用户数据",
+  "version": "1.7.0",
+  "versionCode": 31,
+  "releaseNote": "使用Supabase存储用户数据",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
