@@ -1,7 +1,7 @@
 {
-  "version": "1.4.2",
-  "versionCode": 17,
-  "releaseNote": "修复数据库升级问题",
+  "version": "1.4.3",
+  "versionCode": 18,
+  "releaseNote": "添加调试页面",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

@@ -1387,6 +1387,9 @@ class _HomePageState extends State<HomePage> {
             _buildMenuItem(Icons.help, '帮助与反馈', '常见问题', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpFeedbackPage()));
             }),
+            _buildMenuItem(Icons.bug_report, '调试信息', '查看数据状态', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const DebugPage()));
+            }),
             _buildMenuItem(Icons.info, '关于我们', '版本信息', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutUsPage()));
             }),
@@ -2276,8 +2279,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 17;
-  static const String currentVersion = '1.4.2';
+  static const int currentVersionCode = 18;
+  static const String currentVersion = '1.4.3';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2871,6 +2874,80 @@ class AchievementsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+// ==================== 调试页面 ====================
+class DebugPage extends StatelessWidget {
+  const DebugPage({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    final nickname = DataManager.getNickname();
+    final coins = DataManager.getCoins();
+    final theme = DataManager.getCurrentTheme();
+    final signInDays = DataManager.getSignInDays();
+    final lastSignIn = DataManager.getLastSignIn();
+    final pets = DataManager.getPets();
+    final homeItems = HomeData.placedItems;
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('调试信息', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSection('用户数据', [
+              {'key': '昵称', 'value': nickname},
+              {'key': '主题', 'value': '$theme'},
+              {'key': '金币', 'value': '$coins'},
+            ]),
+            _buildSection('签到数据', [
+              {'key': '连续天数', 'value': '$signInDays'},
+              {'key': '上次签到', 'value': lastSignIn.isEmpty ? '未签到' : lastSignIn},
+            ]),
+            _buildSection('宠物数据', [
+              {'key': '宠物数量', 'value': '${pets.length}'},
+              ...pets.asMap().entries.map((e) => {'key': '宠物${e.key+1}', 'value': '${e.value['name']} (${e.value['type']})'}),
+            ]),
+            _buildSection('家园数据', [
+              {'key': '家具数量', 'value': '${homeItems.length}'},
+              ...homeItems.asMap().entries.map((e) => {'key': '家具${e.key+1}', 'value': '${e.value['name']}'}),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSection(String title, List<Map<String, String>> items) => Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Text('${item['key']}: ', style: TextStyle(color: Colors.grey[600])),
+              Expanded(child: Text(item['value'] ?? '', style: const TextStyle(fontWeight: FontWeight.w500))),
+            ],
+          ),
+        )),
+      ],
+    ),
+  );
 }
 
 // ==================== 主题设置页面 ====================
