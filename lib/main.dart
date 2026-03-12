@@ -57,6 +57,20 @@ class DataManager {
         ''');
         // 初始化用户数据
         await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 1, 'coins': 1000, 'lastSignIn': '', 'signInDays': 0, 'achievements': ''});
+        // 家园表
+        await db.execute('''
+          CREATE TABLE home_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            itemId INTEGER,
+            name TEXT,
+            icon TEXT,
+            price INTEGER,
+            category TEXT,
+            x REAL,
+            y REAL,
+            uid INTEGER
+          )
+        ''');
       },
     );
   }
@@ -64,6 +78,7 @@ class DataManager {
   static Future<void> init() async {
     await database;
     await _loadData();
+    await HomeData.loadItems();
   }
   
   // 加载数据
@@ -2230,8 +2245,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 15;
-  static const String currentVersion = '1.3.5';
+  static const int currentVersionCode = 16;
+  static const String currentVersion = '1.4.1';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2330,6 +2345,47 @@ class HomeData {
         item['y'] = y;
         break;
       }
+    }
+  }
+  
+  // 持久化
+  static Future<void> loadItems() async {
+    try {
+      final db = await DataManager.database;
+      final items = await db.query('home_items');
+      placedItems = items.map((item) => {
+        'id': item['itemId'],
+        'name': item['name'],
+        'icon': item['icon'],
+        'price': item['price'],
+        'category': item['category'],
+        'x': item['x'],
+        'y': item['y'],
+        'uid': item['uid'],
+      }).toList();
+    } catch (e) {
+      print('加载家园数据失败: $e');
+    }
+  }
+  
+  static Future<void> saveItems() async {
+    try {
+      final db = await DataManager.database;
+      await db.delete('home_items');
+      for (var item in placedItems) {
+        await db.insert('home_items', {
+          'itemId': item['id'],
+          'name': item['name'],
+          'icon': item['icon'],
+          'price': item['price'],
+          'category': item['category'],
+          'x': item['x'],
+          'y': item['y'],
+          'uid': item['uid'],
+        });
+      }
+    } catch (e) {
+      print('保存家园数据失败: $e');
     }
   }
 }
@@ -2432,6 +2488,7 @@ class _HomeEditPageState extends State<HomeEditPage> {
                 final box = context.findRenderObject() as RenderBox;
                 final local = box.globalToLocal(details.offset);
                 HomeData.moveItem(item['uid'], local.dx - 25, local.dy - 25);
+                HomeData.saveItems();
                 setState(() {});
               },
               child: Text(item['icon'], style: const TextStyle(fontSize: 50)),
@@ -2531,6 +2588,7 @@ class _HomeEditPageState extends State<HomeEditPage> {
       final idx = HomeData.placedItems.length;
       HomeData.addItem(item, 150.0 + (idx % 3) * 60, 200.0 + (idx ~/ 3) * 60);
     });
+    HomeData.saveItems();
     
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('购买了 ${item['name']}！')));
   }
@@ -2548,6 +2606,7 @@ class _HomeEditPageState extends State<HomeEditPage> {
               title: const Text('删除', style: TextStyle(color: Colors.red)),
               onTap: () {
                 HomeData.removeItem(uid);
+                HomeData.saveItems();
                 setState(() {});
                 Navigator.pop(ctx);
               },

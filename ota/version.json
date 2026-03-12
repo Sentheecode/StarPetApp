@@ -1,7 +1,7 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "versionCode": 16,
-  "releaseNote": "签到系统 + 成就系统上线",
+  "releaseNote": "修复签到和家园数据持久化",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }
