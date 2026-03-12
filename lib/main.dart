@@ -52,7 +52,7 @@ class DataManager {
           )
         ''');
         // 初始化用户数据
-        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': ''});
+        await db.insert('user', {'id': 1, 'nickname': '点击编辑昵称', 'roles': '', 'theme': 0});
       },
     );
   }
@@ -74,7 +74,8 @@ class DataManager {
         final rolesStr = user['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
         // 加载主题
-        _currentThemeIndex = user['theme'] as int? ?? 0;
+        _currentThemeIndex = (user['theme'] as int?) ?? 0;
+        _userData['theme'] = _currentThemeIndex;
       }
       // 加载宠物数据
       final petsList = await db.query('pets');
@@ -189,7 +190,9 @@ class StarPetAppState extends State<StarPetApp> {
   @override
   void initState() {
     super.initState();
-    StarPetApp._themeIndex = DataManager.getCurrentTheme();
+    // 从数据库加载主题
+    final savedTheme = DataManager.getCurrentTheme();
+    StarPetApp._themeIndex = savedTheme;
   }
 
   @override
