@@ -229,6 +229,20 @@ class DataManager {
   // 签到相关
   static String getLastSignIn() => _userData['lastSignIn'] as String? ?? '';
   static int getSignInDays() => _userData['signInDays'] as int? ?? 0;
+  
+  // 直接从数据库读取（用于调试）
+  static Future<Map<String, dynamic>> getRawUserData() async {
+    try {
+      final db = await database;
+      final result = await db.query('user', where: 'id = ?', whereArgs: [1]);
+      if (result.isNotEmpty) {
+        return result.first;
+      }
+    } catch (e) {
+      print('读取原始用户数据失败: $e');
+    }
+    return {};
+  }
   static bool canSignIn() {
     final last = getLastSignIn();
     if (last.isEmpty) return true;
@@ -2297,8 +2311,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 19;
-  static const String currentVersion = '1.4.4';
+  static const int currentVersionCode = 20;
+  static const String currentVersion = '1.4.5';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2895,8 +2909,27 @@ class AchievementsPage extends StatelessWidget {
 }
 
 // ==================== 调试页面 ====================
-class DebugPage extends StatelessWidget {
+class DebugPage extends StatefulWidget {
   const DebugPage({super.key});
+  @override
+  State<DebugPage> createState() => _DebugPageState();
+}
+
+class _DebugPageState extends State<DebugPage> {
+  Map<String, dynamic> _rawDbData = {};
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadRawData();
+  }
+  
+  Future<void> _loadRawData() async {
+    final data = await DataManager.getRawUserData();
+    if (mounted) {
+      setState(() => _rawDbData = data);
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -2922,7 +2955,16 @@ class DebugPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSection('用户数据', [
+            // 数据库原始数据
+            _buildSection('数据库原始数据', [
+              {'key': 'coins', 'value': '${_rawDbData['coins']}'},
+              {'key': 'lastSignIn', 'value': '${_rawDbData['lastSignIn']}'},
+              {'key': 'signInDays', 'value': '${_rawDbData['signInDays']}'},
+              {'key': 'theme', 'value': '${_rawDbData['theme']}'},
+            ]),
+            ElevatedButton(onPressed: _loadRawData, child: const Text('刷新数据库数据')),
+            const SizedBox(height: 16),
+            _buildSection('内存数据', [
               {'key': '昵称', 'value': nickname},
               {'key': '主题', 'value': '$theme'},
               {'key': '金币', 'value': '$coins'},
