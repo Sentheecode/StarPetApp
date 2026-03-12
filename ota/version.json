@@ -1,7 +1,7 @@
 {
-  "version": "1.1.1",
-  "versionCode": 11,
-  "releaseNote": "关于我们页面增加检查更新功能，有新版本显示红点",
+  "version": "1.2.0",
+  "versionCode": 12,
+  "releaseNote": "主题实时生效 + 宠物详情页",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

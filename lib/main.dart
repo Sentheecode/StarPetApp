@@ -154,6 +154,29 @@ void main() async {
 class StarPetApp extends StatefulWidget {
   const StarPetApp({super.key});
 
+  // 主题配置
+  static final List<Map<String, dynamic>> themes = [
+    {'name': '粉紫甜心', 'primary': Color(0xFFFF69B4), 'secondary': Color(0xFF9370DB), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFFE5E5EA), 'groundBottom': Color(0xFFD1D1D6), 'skyTop': Color(0xFFF2F2F7), 'skyBottom': Color(0xFFE5E5EA)},
+    {'name': '苹果简约', 'primary': Color(0xFF000000), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFFE5E5EA), 'groundBottom': Color(0xFFD1D1D6), 'skyTop': Color(0xFFF2F2F7), 'skyBottom': Color(0xFFE5E5EA)},
+    {'name': '清新薄荷', 'primary': Color(0xFF98FB98), 'secondary': Color(0xFF20B2AA), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFFE5E5EA), 'groundBottom': Color(0xFFD1D1D6), 'skyTop': Color(0xFFF2F2F7), 'skyBottom': Color(0xFFE5E5EA)},
+    {'name': '天空蓝', 'primary': Color(0xFF87CEEB), 'secondary': Color(0xFF4169E1), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFFE5E5EA), 'groundBottom': Color(0xFFD1D1D6), 'skyTop': Color(0xFFF2F2F7), 'skyBottom': Color(0xFFE5E5EA)},
+    {'name': '夕阳橙', 'primary': Color(0xFFFF6347), 'secondary': Color(0xFFFFD700), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFFE5E5EA), 'groundBottom': Color(0xFFD1D1D6), 'skyTop': Color(0xFFF2F2F7), 'skyBottom': Color(0xFFE5E5EA)},
+    {'name': '暗黑模式', 'primary': Color(0xFF1C1C1E), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFF000000), 'text': Color(0xFFFFFFFF), 'textSecondary': Color(0xFF8E8E93), 'groundTop': Color(0xFF1C1C1E), 'groundBottom': Color(0xFF2C2C2E), 'skyTop': Color(0xFF000000), 'skyBottom': Color(0xFF1C1C1E)},
+  ];
+  
+  static int _themeIndex = 0;
+  static int get currentThemeIndex => _themeIndex;
+  static Color get primaryColor => themes[_themeIndex]['primary'];
+  static Color get secondaryColor => themes[_themeIndex]['secondary'];
+  static Color get backgroundColor => themes[_themeIndex]['background'];
+  static Color get textColor => themes[_themeIndex]['text'];
+  static Color get textSecondary => themes[_themeIndex]['textSecondary'];
+  static Color get groundTop => themes[_themeIndex]['groundTop'];
+  static Color get groundBottom => themes[_themeIndex]['groundBottom'];
+  static Color get skyTop => themes[_themeIndex]['skyTop'];
+  static Color get skyBottom => themes[_themeIndex]['skyBottom'];
+  static void updateTheme(int index) { _themeIndex = index; }
+
   @override
   State<StarPetApp> createState() => StarPetAppState();
 }
@@ -163,32 +186,10 @@ class StarPetAppState extends State<StarPetApp> {
     return context.findAncestorStateOfType<StarPetAppState>();
   }
 
-  int _themeIndex = 0;
-
-  // 主题配置
-  static final List<Map<String, dynamic>> themes = [
-    {'name': '粉紫甜心', 'primary': Color(0xFFFF69B4), 'secondary': Color(0xFF9370DB), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
-    {'name': '苹果简约', 'primary': Color(0xFF000000), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
-    {'name': '清新薄荷', 'primary': Color(0xFF98FB98), 'secondary': Color(0xFF20B2AA), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
-    {'name': '天空蓝', 'primary': Color(0xFF87CEEB), 'secondary': Color(0xFF4169E1), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
-    {'name': '夕阳橙', 'primary': Color(0xFFFF6347), 'secondary': Color(0xFFFFD700), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
-    {'name': '暗黑模式', 'primary': Color(0xFF1C1C1E), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFF000000), 'text': Color(0xFFFFFFFF), 'textSecondary': Color(0xFF8E8E93)},
-  ];
-
-  Color get primaryColor => themes[_themeIndex]['primary'];
-  Color get secondaryColor => themes[_themeIndex]['secondary'];
-  Color get backgroundColor => themes[_themeIndex]['background'];
-  Color get textColor => themes[_themeIndex]['text'];
-  Color get textSecondary => themes[_themeIndex]['textSecondary'];
-
   @override
   void initState() {
     super.initState();
-    _themeIndex = DataManager.getCurrentTheme();
-  }
-
-  void updateTheme(int index) {
-    setState(() => _themeIndex = index);
+    StarPetApp._themeIndex = DataManager.getCurrentTheme();
   }
 
   @override
@@ -197,13 +198,13 @@ class StarPetAppState extends State<StarPetApp> {
       title: 'StarPet - 星宠',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: primaryColor,
+        primaryColor: StarPetApp.primaryColor,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryColor,
-          primary: primaryColor,
-          secondary: secondaryColor,
+          seedColor: StarPetApp.primaryColor,
+          primary: StarPetApp.primaryColor,
+          secondary: StarPetApp.secondaryColor,
         ),
-        scaffoldBackgroundColor: backgroundColor,
+        scaffoldBackgroundColor: StarPetApp.backgroundColor,
         fontFamily: 'System',
       ),
       home: const HomePage(),
@@ -247,7 +248,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('发现新版本!'),
+        title: Text('发现新版本!'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,14 +261,14 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('稍后再说'),
+            child: Text('稍后再说'),
           ),
           TextButton(
             onPressed: () {
               OTAUpdater.downloadUpdate(context);
               Navigator.pop(context);
             },
-            child: const Text('立即更新'),
+            child: Text('立即更新'),
           ),
         ],
       ),
@@ -300,7 +301,7 @@ class _HomePageState extends State<HomePage> {
   // ==================== 家园Tab ====================
   Widget _buildHomeTab() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -339,14 +340,14 @@ class _HomePageState extends State<HomePage> {
                   color: StarPetApp.primaryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.pets,
                   color: StarPetApp.primaryColor,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 '星宠',
                 style: TextStyle(
                   fontSize: 24,
@@ -362,7 +363,7 @@ class _HomePageState extends State<HomePage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [Color(0xFFFFD54F), Color(0xFFFFC107)],
                   ),
                   borderRadius: BorderRadius.circular(20),
@@ -374,7 +375,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(Icons.star, size: 18, color: Colors.white),
                     SizedBox(width: 4),
@@ -402,7 +403,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.settings,
                   color: StarPetApp.textSecondary,
                   size: 22,
@@ -437,7 +438,7 @@ class _HomePageState extends State<HomePage> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [StarPetApp.primaryColor, StarPetApp.secondaryColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -454,7 +455,7 @@ class _HomePageState extends State<HomePage> {
             child: Center(
               child: Text(
                 pets[0]['type'] == 'cat' ? '🐱' : '🐕',
-                style: const TextStyle(fontSize: 28),
+                style: TextStyle(fontSize: 28),
               ),
             ),
           ),
@@ -468,7 +469,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       pets[0]['name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: StarPetApp.textColor,
@@ -483,7 +484,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Text(
                         pets[0]['gender'] == 'female' ? '♀ 雌性' : '♂ 雄性',
-                        style: const TextStyle(fontSize: 10, color: Colors.black),
+                        style: TextStyle(fontSize: 10, color: Colors.black),
                       ),
                     ),
                   ],
@@ -491,7 +492,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 4),
                 Text(
                   '${pets[0]['type'] == 'cat' ? '🐱' : '🐕'} ${pets[0]['breed']} · 1岁',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: StarPetApp.textSecondary,
                   ),
@@ -511,13 +512,13 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     '+${pets.length - 1}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: StarPetApp.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.pets, size: 16, color: StarPetApp.primaryColor),
+                  Icon(Icons.pets, size: 16, color: StarPetApp.primaryColor),
                 ],
               ),
             ),
@@ -545,7 +546,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             // 天空背景
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -571,7 +572,7 @@ class _HomePageState extends State<HomePage> {
               right: 0,
               child: Container(
                 height: 140,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -619,7 +620,7 @@ class _HomePageState extends State<HomePage> {
                 width: 100,
                 height: 100,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Text('🐱', style: TextStyle(fontSize: 72)),
+                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 72)),
               ),
             ),
             // 第二只猫
@@ -631,7 +632,7 @@ class _HomePageState extends State<HomePage> {
                 width: 80,
                 height: 80,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Text('🐱', style: TextStyle(fontSize: 56)),
+                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 56)),
               ),
             ),
             // 猫咪图片3
@@ -643,7 +644,7 @@ class _HomePageState extends State<HomePage> {
                 width: 60,
                 height: 60,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Text('🐱', style: TextStyle(fontSize: 40)),
+                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 40)),
               ),
             ),
             // 家具 - 猫爬架
@@ -689,7 +690,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.add,
                   color: Colors.black,
                   size: 30,
@@ -723,7 +724,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 6),
           Text(
             name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               color: StarPetApp.textColor,
               fontWeight: FontWeight.w500,
@@ -777,7 +778,7 @@ class _HomePageState extends State<HomePage> {
             // 标题栏
             Container(
               padding: const EdgeInsets.all(20),
-              child: const Row(
+              child: Row(
                 children: [
                   Text(
                     '同城服务',
@@ -847,11 +848,11 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 40)),
+          Text(emoji, style: TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: StarPetApp.textColor,
@@ -860,7 +861,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               color: StarPetApp.textSecondary,
             ),
@@ -884,7 +885,7 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     '宠物社交',
                     style: TextStyle(
                       fontSize: 24,
@@ -900,7 +901,7 @@ class _HomePageState extends State<HomePage> {
                     child: Container(
                       width: 36, height: 36,
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.add, color: Colors.black, size: 24),
+                      child: Icon(Icons.add, color: Colors.black, size: 24),
                     ),
                   ),
                 ],
@@ -963,13 +964,13 @@ class _HomePageState extends State<HomePage> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [StarPetApp.primaryColor, StarPetApp.secondaryColor],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
-                  child: Text(author.split(' ')[0], style: const TextStyle(fontSize: 20)),
+                  child: Text(author.split(' ')[0], style: TextStyle(fontSize: 20)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -979,14 +980,14 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       author.split(' ')[1],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: StarPetApp.textColor,
                       ),
                     ),
                     Text(
                       time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         color: StarPetApp.textSecondary,
                       ),
@@ -999,7 +1000,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           Text(
             content,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               color: StarPetApp.textColor,
             ),
@@ -1009,7 +1010,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               Text(
                 stats,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   color: StarPetApp.textSecondary,
                 ),
@@ -1031,7 +1032,7 @@ class _HomePageState extends State<HomePage> {
             // 标题栏
             Container(
               padding: const EdgeInsets.all(20),
-              child: const Row(
+              child: Row(
                 children: [
                   Text(
                     '设备互联',
@@ -1100,7 +1101,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              child: Text(emoji, style: TextStyle(fontSize: 28)),
             ),
           ),
           const SizedBox(width: 16),
@@ -1110,7 +1111,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: StarPetApp.textColor,
@@ -1168,7 +1169,7 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [StarPetApp.primaryColor, StarPetApp.secondaryColor],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1205,14 +1206,14 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               Text(
                                 nickname,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              const Text(
+                              Text(
                                 'ID: 123456',
                                 style: TextStyle(
                                   fontSize: 13,
@@ -1232,7 +1233,7 @@ class _HomePageState extends State<HomePage> {
                         children: roles.map((r) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                          child: Text(r, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                          child: Text(r, style: TextStyle(color: Colors.white, fontSize: 12)),
                         )).toList(),
                       ),
                     ],
@@ -1300,7 +1301,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: StarPetApp.textColor,
@@ -1308,7 +1309,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: StarPetApp.textSecondary,
                   ),
@@ -1316,7 +1317,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right,
             color: StarPetApp.textSecondary,
           ),
@@ -1430,7 +1431,7 @@ class _RoleSelectPageState extends State<RoleSelectPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('选择角色', style: TextStyle(color: Colors.black)),
+        title: Text('选择角色', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -1465,10 +1466,10 @@ class _RoleSelectPageState extends State<RoleSelectPage> {
                       ),
                       child: Row(
                         children: [
-                          Container(width: 60, height: 60, decoration: BoxDecoration(color: isSelected ? Colors.black : Colors.grey[100], borderRadius: BorderRadius.circular(16)), child: Center(child: Text(role['icon'], style: const TextStyle(fontSize: 30)))),
+                          Container(width: 60, height: 60, decoration: BoxDecoration(color: isSelected ? Colors.black : Colors.grey[100], borderRadius: BorderRadius.circular(16)), child: Center(child: Text(role['icon'], style: TextStyle(fontSize: 30)))),
                           const SizedBox(width: 16),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(role['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(role['desc'], style: TextStyle(fontSize: 13, color: Colors.grey[600]))])),
-                          if (isSelected) Container(width: 28, height: 28, decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle), child: const Icon(Icons.check, color: Colors.white, size: 18)),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(role['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(role['desc'], style: TextStyle(fontSize: 13, color: Colors.grey[600]))])),
+                          if (isSelected) Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.black, shape: BoxShape.circle), child: Icon(Icons.check, color: Colors.white, size: 18)),
                         ],
                       ),
                     ),
@@ -1484,7 +1485,7 @@ class _RoleSelectPageState extends State<RoleSelectPage> {
                 child: ElevatedButton(
                   onPressed: selectedRoles.isEmpty ? null : () { Navigator.pop(context); },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, disabledBackgroundColor: Colors.grey[300], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                  child: const Text('下一步', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Text('下一步', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
             ),
@@ -1511,11 +1512,11 @@ class _PetListPageState extends State<PetListPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(pet['name'] ?? '宠物', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(pet['name'] ?? '宠物', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('查看详情'),
+              title: Text('查看详情'),
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.push(context, MaterialPageRoute(builder: (context) => PetDetailPage(petIndex: index)));
@@ -1523,7 +1524,7 @@ class _PetListPageState extends State<PetListPage> {
             ),
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('编辑'),
+              title: Text('编辑'),
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.push(context, MaterialPageRoute(builder: (context) => AddPetPage(petIndex: index)));
@@ -1531,7 +1532,7 @@ class _PetListPageState extends State<PetListPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('删除', style: TextStyle(color: Colors.red)),
+              title: Text('删除', style: TextStyle(color: Colors.red)),
               onTap: () async {
                 await DataManager.deletePet(index);
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -1553,7 +1554,7 @@ class _PetListPageState extends State<PetListPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('我的宠物', style: TextStyle(color: Colors.black)),
+        title: Text('我的宠物', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: ListView(
@@ -1574,13 +1575,13 @@ class _PetListPageState extends State<PetListPage> {
                 ),
                 child: Row(
                   children: [
-                    Container(width: 70, height: 70, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)), child: Center(child: Text((pet['type'] ?? 'cat') == 'cat' ? '🐱' : '🐕', style: const TextStyle(fontSize: 36)))),
+                    Container(width: 70, height: 70, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)), child: Center(child: Text((pet['type'] ?? 'cat') == 'cat' ? '🐱' : '🐕', style: TextStyle(fontSize: 36)))),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(pet['name'] ?? '宠物', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text(pet['name'] ?? '宠物', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
                           Text('${pet['breed'] ?? ''} · ${pet['color'] ?? ''}', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                           const SizedBox(height: 2),
@@ -1646,7 +1647,7 @@ class _AddPetPageState extends State<AddPetPage> {
     }
   }
 
-  Widget _buildCard(String emoji, String label, bool sel, VoidCallback tap) => GestureDetector(onTap: tap, child: Container(width: 150, height: 100, decoration: BoxDecoration(color: sel ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.black : Colors.grey[300]!)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(emoji, style: const TextStyle(fontSize: 36)), const SizedBox(height: 8), Text(label, style: TextStyle(fontSize: 14, color: sel ? Colors.white : Colors.black))])));
+  Widget _buildCard(String emoji, String label, bool sel, VoidCallback tap) => GestureDetector(onTap: tap, child: Container(width: 150, height: 100, decoration: BoxDecoration(color: sel ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.black : Colors.grey[300]!)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(emoji, style: TextStyle(fontSize: 36)), const SizedBox(height: 8), Text(label, style: TextStyle(fontSize: 14, color: sel ? Colors.white : Colors.black))])));
 
   Future<void> _savePet() async {
     final name = _nameController.text.isEmpty ? '宠物${DataManager.getPets().length + 1}' : _nameController.text;
@@ -1701,11 +1702,11 @@ class _AddPetPageState extends State<AddPetPage> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF6B6B)]),
+                                gradient: LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF6B6B)]),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 2)],
                               ),
-                              child: const Text('★★★ 新宠物 ★★★', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                              child: Text('★★★ 新宠物 ★★★', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                             ),
                           ),
                         );
@@ -1727,7 +1728,7 @@ class _AddPetPageState extends State<AddPetPage> {
                               gradient: const RadialGradient(colors: [Color(0xFFFFE4B5), Color(0xFFFFD700)]),
                               boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.8), blurRadius: 40, spreadRadius: 10)],
                             ),
-                            child: Center(child: Text(petType == 'cat' ? '🐱' : '🐕', style: const TextStyle(fontSize: 80))),
+                            child: Center(child: Text(petType == 'cat' ? '🐱' : '🐕', style: TextStyle(fontSize: 80))),
                           ),
                         );
                       },
@@ -1744,7 +1745,7 @@ class _AddPetPageState extends State<AddPetPage> {
                             children: [
                               Text(
                                 _nameController.text.isEmpty ? '新宠物' : _nameController.text,
-                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Color(0xFFFFD700), blurRadius: 10)]),
+                                style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Color(0xFFFFD700), blurRadius: 10)]),
                               ),
                               const SizedBox(height: 10),
                               Container(
@@ -1753,7 +1754,7 @@ class _AddPetPageState extends State<AddPetPage> {
                                   color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
-                                child: Text('${petType == 'cat' ? '猫咪' : '狗狗'} · ${gender == 'female' ? '雌性' : '雄性'}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                                child: Text('${petType == 'cat' ? '猫咪' : '狗狗'} · ${gender == 'female' ? '雌性' : '雄性'}', style: TextStyle(color: Colors.white70, fontSize: 14)),
                               ),
                             ],
                           ),
@@ -1770,13 +1771,13 @@ class _AddPetPageState extends State<AddPetPage> {
                           opacity: value,
                           child: Transform.translate(
                             offset: Offset(0, 20 * (1 - value)),
-                            child: const Text('✨ 恭喜获得新伙伴! ✨', style: TextStyle(fontSize: 20, color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
+                            child: Text('✨ 恭喜获得新伙伴! ✨', style: TextStyle(fontSize: 20, color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
                           ),
                         );
                       },
                     ),
                     const SizedBox(height: 60),
-                    const Text('点击任意处关闭', style: TextStyle(color: Colors.white38, fontSize: 14)),
+                    Text('点击任意处关闭', style: TextStyle(color: Colors.white38, fontSize: 14)),
                   ],
                 ),
               ),
@@ -1802,7 +1803,7 @@ class _AddPetPageState extends State<AddPetPage> {
             opacity: (1 - value) * 0.8,
             child: Transform.rotate(
               angle: value * 6.28,
-              child: Text(['✨', '⭐', '🌟', '💫', '✦'][index % 5], style: const TextStyle(fontSize: 24)),
+              child: Text(['✨', '⭐', '🌟', '💫', '✦'][index % 5], style: TextStyle(fontSize: 24)),
             ),
           ),
         );
@@ -1814,7 +1815,7 @@ class _AddPetPageState extends State<AddPetPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
-      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)), title: Text(widget.petIndex != null ? '编辑宠物' : '添加宠物', style: const TextStyle(color: Colors.black)), centerTitle: true),
+      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)), title: Text(widget.petIndex != null ? '编辑宠物' : '添加宠物', style: TextStyle(color: Colors.black)), centerTitle: true),
       body: Stack(
         children: [
           SafeArea(
@@ -1833,7 +1834,7 @@ class _AddPetPageState extends State<AddPetPage> {
                 if (gender != null) ...[_buildSectionTitle(widget.petIndex != null ? '3. 选择花色' : '4. 选择花色'), const SizedBox(height: 12), _buildGrid(colors[petType] ?? [], color, (c) => setState(() => color = c)), const SizedBox(height: 24)],
                 if (color != null && petType != null) ...[_buildSectionTitle(widget.petIndex != null ? '4. 选择品种' : '5. 选择品种'), const SizedBox(height: 12), _buildGrid(breeds[petType] ?? [], breed, (b) => setState(() => breed = b)), const SizedBox(height: 24)],
                 if (breed != null && petType != null) ...[_buildSectionTitle(widget.petIndex != null ? '5. 选择特征' : '6. 选择特征'), const SizedBox(height: 12), _buildGrid(features[petType] ?? [], feature, (f) => setState(() => feature = f)), const SizedBox(height: 24)],
-                if (feature != null) SizedBox(width: double.infinity, height: 56, child: ElevatedButton(onPressed: _savePet, style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text(widget.petIndex != null ? '保存修改' : '保存', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
+                if (feature != null) SizedBox(width: double.infinity, height: 56, child: ElevatedButton(onPressed: _savePet, style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text(widget.petIndex != null ? '保存修改' : '保存', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
               ],
             ),
           ),
@@ -1843,7 +1844,7 @@ class _AddPetPageState extends State<AddPetPage> {
     );
   }
 
-  Widget _buildSectionTitle(String t) => Text(t, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+  Widget _buildSectionTitle(String t) => Text(t, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
   Widget _buildGrid(List<String> items, String? sel, Function(String) onTap) => Wrap(spacing: 8, runSpacing: 8, children: items.map((i) => GestureDetector(onTap: () => onTap(i), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: sel == i ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(20)), child: Text(i, style: TextStyle(color: sel == i ? Colors.white : Colors.black))))).toList());
 }
 
@@ -1856,7 +1857,7 @@ class PetDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final pets = DataManager.getPets();
     if (petIndex >= pets.length) {
-      return Scaffold(appBar: AppBar(title: const Text('宠物详情')), body: const Center(child: Text('宠物不存在')));
+      return Scaffold(appBar: AppBar(title: Text('宠物详情')), body: const Center(child: Text('宠物不存在')));
     }
     final pet = pets[petIndex];
     final isCat = pet['type'] == 'cat';
@@ -1867,7 +1868,7 @@ class PetDetailPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: Text(pet['name'] ?? '宠物详情', style: const TextStyle(color: Colors.black)),
+        title: Text(pet['name'] ?? '宠物详情', style: TextStyle(color: Colors.black)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -1888,10 +1889,10 @@ class PetDetailPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)],
               ),
-              child: Center(child: Text(isCat ? '🐱' : '🐕', style: const TextStyle(fontSize: 60))),
+              child: Center(child: Text(isCat ? '🐱' : '🐕', style: TextStyle(fontSize: 60))),
             ),
             const SizedBox(height: 16),
-            Text(pet['name'] ?? '未命名', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text(pet['name'] ?? '未命名', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1943,7 +1944,7 @@ class PetDetailPage extends StatelessWidget {
           const SizedBox(width: 12),
           Text(item['label'], style: TextStyle(color: Colors.grey[600])),
           const Spacer(),
-          Text(item['value'], style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(item['value'], style: TextStyle(fontWeight: FontWeight.w500)),
         ]),
       )).toList(),
     ),
@@ -1969,7 +1970,7 @@ class PetDetailPage extends StatelessWidget {
     child: Row(children: [
       Text(label, style: TextStyle(color: Colors.grey[600])),
       const Spacer(),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w500)),
       const SizedBox(width: 12),
       Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Text(status, style: TextStyle(color: statusColor, fontSize: 12))),
     ]),
@@ -1992,7 +1993,7 @@ class PetDetailPage extends StatelessWidget {
   Widget _buildMemoryItem(String date, String content) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFF2F2F7), borderRadius: BorderRadius.circular(8)), child: Text(date, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFF2F2F7), borderRadius: BorderRadius.circular(8)), child: Text(date, style: TextStyle(fontSize: 12, color: Colors.grey))),
       const SizedBox(width: 12),
       Expanded(child: Text(content)),
     ]),
@@ -2019,8 +2020,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, leading: IconButton(icon: const Icon(Icons.close, color: Colors.black), onPressed: () => Navigator.pop(context)), title: const Text('发布博文', style: TextStyle(color: Colors.black)), centerTitle: true, actions: [TextButton(onPressed: _publishPost, child: const Text('发布', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)))]),
-      body: Padding(padding: const EdgeInsets.all(16), child: TextField(controller: _contentController, maxLines: null, minLines: 10, decoration: const InputDecoration(hintText: '分享你和宠物的故事...', border: InputBorder.none), style: const TextStyle(fontSize: 16))),
+      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, leading: IconButton(icon: const Icon(Icons.close, color: Colors.black), onPressed: () => Navigator.pop(context)), title: Text('发布博文', style: TextStyle(color: Colors.black)), centerTitle: true, actions: [TextButton(onPressed: _publishPost, child: Text('发布', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)))]),
+      body: Padding(padding: const EdgeInsets.all(16), child: TextField(controller: _contentController, maxLines: null, minLines: 10, decoration: const InputDecoration(hintText: '分享你和宠物的故事...', border: InputBorder.none), style: TextStyle(fontSize: 16))),
     );
   }
 }
@@ -2062,7 +2063,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('编辑资料', style: TextStyle(color: Colors.black)),
+        title: Text('编辑资料', style: TextStyle(color: Colors.black)),
         centerTitle: true,
         actions: [
           TextButton(
@@ -2072,14 +2073,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
               await DataManager.setRoles(selectedNames);
               if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('保存', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text('保存', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text('昵称', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('昵称', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           TextField(
             controller: _nicknameController,
@@ -2091,7 +2092,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('选择角色（可多选）', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('选择角色（可多选）', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ...roles.map((role) {
             final id = int.parse(role['id']!);
@@ -2118,7 +2119,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         color: isSelected ? Colors.white : Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(child: Text(role['icon']!, style: const TextStyle(fontSize: 24))),
+                      child: Center(child: Text(role['icon']!, style: TextStyle(fontSize: 24))),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -2217,7 +2218,7 @@ class HomeEditPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('我的家园', style: TextStyle(color: Colors.black)),
+        title: Text('我的家园', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: const Center(
@@ -2263,7 +2264,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('主题设置', style: TextStyle(color: Colors.black)),
+        title: Text('主题设置', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: Column(
@@ -2272,7 +2273,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                const Text('选择主题风格', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('选择主题风格', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 ...List.generate(_themes.length, (i) {
                   final theme = _themes[i];
@@ -2313,7 +2314,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                   onPressed: () async {
                     await DataManager.setTheme(_selectedTheme);
                     // 实时刷新主题
-                    StarPetAppState.of(context)?.updateTheme(_selectedTheme);
+                    StarPetApp.updateTheme(_selectedTheme);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('主题已切换为 ${_themes[_selectedTheme]['name']}'), duration: const Duration(seconds: 1)),
@@ -2326,7 +2327,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('保存主题', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text('保存主题', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
@@ -2357,7 +2358,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('消息通知', style: TextStyle(color: Colors.black)),
+        title: Text('消息通知', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: ListView(
@@ -2382,7 +2383,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
               ],
             ),
@@ -2406,7 +2407,7 @@ class HelpFeedbackPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('帮助与反馈', style: TextStyle(color: Colors.black)),
+        title: Text('帮助与反馈', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: ListView(
@@ -2422,7 +2423,7 @@ class HelpFeedbackPage extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('反馈功能开发中...')));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('提交反馈', style: TextStyle(fontSize: 16)),
+            child: Text('提交反馈', style: TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -2437,7 +2438,7 @@ class HelpFeedbackPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(question, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          Text(question, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(answer, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
         ],
@@ -2487,7 +2488,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('关于我们', style: TextStyle(color: Colors.black)),
+        title: Text('关于我们', style: TextStyle(color: Colors.black)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -2507,7 +2508,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                 Container(
                   width: 100, height: 100,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFFF69B4), Color(0xFF9370DB)]),
+                    gradient: LinearGradient(colors: [Color(0xFFFF69B4), Color(0xFF9370DB)]),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(child: Text('🐾', style: TextStyle(fontSize: 50))),
@@ -2517,16 +2518,16 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     right: 0, top: 0,
                     child: Container(
                       width: 20, height: 20,
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                       child: const Center(child: Text('!', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 20),
-            const Text('星宠', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text('星宠', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('版本 ${OTAUpdater.currentVersionCode <= 9 ? '1.0.' + OTAUpdater.currentVersionCode.toString() : '1.0.' + OTAUpdater.currentVersionCode.toString()}', style: const TextStyle(color: Colors.grey)),
+            Text('版本 ${OTAUpdater.currentVersionCode <= 9 ? '1.0.' + OTAUpdater.currentVersionCode.toString() : '1.0.' + OTAUpdater.currentVersionCode.toString()}', style: TextStyle(color: Colors.grey)),
             if (_hasUpdate) ...[
               const SizedBox(height: 8),
               GestureDetector(
@@ -2534,7 +2535,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
-                  child: Text('$_latestVersion 可更新', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  child: Text('$_latestVersion 可更新', style: TextStyle(color: Colors.white, fontSize: 12)),
                 ),
               ),
             ],
@@ -2555,16 +2556,16 @@ class _AboutUsPageState extends State<AboutUsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('发现新版本'),
+        title: Text('发现新版本'),
         content: Text('最新版本: $_latestVersion\n是否下载更新?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('取消')),
           TextButton(
             onPressed: () {
               OTAUpdater.downloadUpdate(context);
               Navigator.pop(context);
             },
-            child: const Text('立即更新'),
+            child: Text('立即更新'),
           ),
         ],
       ),
