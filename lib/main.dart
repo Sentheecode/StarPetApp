@@ -2206,9 +2206,59 @@ class OTAUpdater {
   }
 }
 
+// ==================== 家园数据 ====================
+class HomeData {
+  static List<Map<String, dynamic>> furniture = [
+    {'id': 1, 'name': '猫爬架', 'icon': '🧶', 'price': 100, 'category': '玩具'},
+    {'id': 2, 'name': '狗窝', 'icon': '🛏️', 'price': 150, 'category': '床'},
+    {'id': 3, 'name': '食盆', 'icon': '🥣', 'price': 50, 'category': '用品'},
+    {'id': 4, 'name': '饮水机', 'icon': '💧', 'price': 80, 'category': '用品'},
+    {'id': 5, 'name': '猫砂盆', 'icon': '🩰', 'price': 60, 'category': '用品'},
+    {'id': 6, 'name': '玩具球', 'icon': '🎾', 'price': 30, 'category': '玩具'},
+    {'id': 7, 'name': '沙发', 'icon': '🛋️', 'price': 300, 'category': '家具'},
+    {'id': 8, 'name': '地毯', 'icon': '🧵', 'price': 80, 'category': '家具'},
+    {'id': 9, 'name': '盆栽', 'icon': '🪴', 'price': 50, 'category': '装饰'},
+    {'id': 10, 'name': '照片墙', 'icon': '🖼️', 'price': 100, 'category': '装饰'},
+    {'id': 11, 'name': '小房子', 'icon': '🏠', 'price': 200, 'category': '玩具'},
+    {'id': 12, 'name': '跑步机', 'icon': '🎡', 'price': 250, 'category': '玩具'},
+  ];
+  
+  static List<Map<String, dynamic>> placedItems = [];
+  static int coins = 1000;
+  
+  static void addItem(Map<String, dynamic> item, double x, double y) {
+    placedItems.add({
+      ...item,
+      'x': x,
+      'y': y,
+      'uid': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+  
+  static void removeItem(int uid) {
+    placedItems.removeWhere((item) => item['uid'] == uid);
+  }
+  
+  static void moveItem(int uid, double x, double y) {
+    for (var item in placedItems) {
+      if (item['uid'] == uid) {
+        item['x'] = x;
+        item['y'] = y;
+        break;
+      }
+    }
+  }
+}
+
 // ==================== 我的家园页面 ====================
-class HomeEditPage extends StatelessWidget {
+class HomeEditPage extends StatefulWidget {
   const HomeEditPage({super.key});
+  @override
+  State<HomeEditPage> createState() => _HomeEditPageState();
+}
+
+class _HomeEditPageState extends State<HomeEditPage> {
+  int _selectedTab = 0; // 0: 家园 1: 商店
   
   @override
   Widget build(BuildContext context) {
@@ -2218,18 +2268,206 @@ class HomeEditPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: Text('我的家园', style: TextStyle(color: Colors.black)),
+        title: const Text('我的家园', style: TextStyle(color: Colors.black)),
         centerTitle: true,
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: Colors.amber[100], borderRadius: BorderRadius.circular(20)),
+            child: Row(children: [
+              const Text('🪙', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 4),
+              Text('${HomeData.coins}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[800])),
+            ]),
+          ),
+        ],
       ),
-      body: const Center(
+      body: Column(
+        children: [
+          // Tab 切换
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              children: [
+                Expanded(child: _buildTab(0, '🏡 我的家园')),
+                Expanded(child: _buildTab(1, '🛒 家具商店')),
+              ],
+            ),
+          ),
+          // 内容
+          Expanded(
+            child: _selectedTab == 0 ? _buildHomeView() : _buildShopView(),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTab(int index, String label) {
+    final isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? StarPetApp.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: isSelected ? Colors.white : Colors.grey[600], fontWeight: FontWeight.w500)),
+      ),
+    );
+  }
+  
+  // 家园视图
+  Widget _buildHomeView() {
+    return Stack(
+      children: [
+        // 草地背景
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.green[300]!, Colors.green[400]!],
+            ),
+          ),
+        ),
+        // 放置的家具
+        ...HomeData.placedItems.map((item) => Positioned(
+          left: item['x'],
+          top: item['y'],
+          child: GestureDetector(
+            onLongPress: () => _showItemOptions(item['uid']),
+            child: Draggable<Map<String, dynamic>>(
+              data: item,
+              feedback: Text(item['icon'], style: const TextStyle(fontSize: 40)),
+              childWhenDragging: const SizedBox(),
+              onDragEnd: (details) {
+                final box = context.findRenderObject() as RenderBox;
+                final local = box.globalToLocal(details.offset);
+                HomeData.moveItem(item['uid'], local.dx - 25, local.dy - 25);
+                setState(() {});
+              },
+              child: Text(item['icon'], style: const TextStyle(fontSize: 50)),
+            ),
+          ),
+        )),
+        // 空状态
+        if (HomeData.placedItems.isEmpty)
+          const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🛒', style: TextStyle(fontSize: 60)),
+                SizedBox(height: 16),
+                Text('去商店买些家具吧~', style: TextStyle(fontSize: 18, color: Colors.white70)),
+              ],
+            ),
+          ),
+        // 提示
+        Positioned(
+          bottom: 16,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(20)),
+              child: const Text('长按删除 / 拖拽移动', style: TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // 商店视图
+  Widget _buildShopView() {
+    final categories = ['全部', '玩具', '床', '用品', '家具', '装饰'];
+    return Column(
+      children: [
+        // 分类
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: categories.map((cat) => Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: Text(cat, style: const TextStyle(fontSize: 14)),
+            )).toList(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 商品列表
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.8, crossAxisSpacing: 12, mainAxisSpacing: 12),
+            itemCount: HomeData.furniture.length,
+            itemBuilder: (context, index) {
+              final item = HomeData.furniture[index];
+              final canAfford = HomeData.coins >= item['price'];
+              return GestureDetector(
+                onTap: canAfford ? () => _buyItem(item) : null,
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item['icon'], style: const TextStyle(fontSize: 32)),
+                      const SizedBox(height: 8),
+                      Text(item['name'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Text('🪙${item['price']}', style: TextStyle(fontSize: 11, color: canAfford ? Colors.amber[700] : Colors.red)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  void _buyItem(Map<String, dynamic> item) {
+    if (HomeData.coins < item['price']) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('金币不足！')));
+      return;
+    }
+    
+    setState(() {
+      HomeData.coins -= (item['price'] as int);
+      // 默认放在中间位置
+      final idx = HomeData.placedItems.length;
+      HomeData.addItem(item, 150.0 + (idx % 3) * 60, 200.0 + (idx ~/ 3) * 60);
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('购买了 ${item['name']}！')));
+  }
+  
+  void _showItemOptions(int uid) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.home, size: 80, color: Colors.grey),
-            SizedBox(height: 20),
-            Text('家园系统开发中...', style: TextStyle(fontSize: 18, color: Colors.grey)),
-            SizedBox(height: 10),
-            Text('敬请期待!', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('删除', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                HomeData.removeItem(uid);
+                setState(() {});
+                Navigator.pop(ctx);
+              },
+            ),
           ],
         ),
       ),
