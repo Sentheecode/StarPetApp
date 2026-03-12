@@ -151,20 +151,45 @@ void main() async {
   runApp(const StarPetApp());
 }
 
-class StarPetApp extends StatelessWidget {
+class StarPetApp extends StatefulWidget {
   const StarPetApp({super.key});
 
-  // 苹果简约ins风主题
-  static const Color primaryColor = Color(0xFF000000); // 黑色
-  static const Color secondaryColor = Color(0xFF8E8E93); // 灰色
-  static const Color backgroundColor = Color(0xFFF2F2F7); // 浅灰
-  static const Color accentColor = Color(0xFF007AFF); // 蓝色
-  static const Color textColor = Color(0xFF000000);
-  static const Color textSecondary = Color(0xFF8E8E93);
-  static const Color groundTop = Color(0xFFE5E5EA);
-  static const Color groundBottom = Color(0xFFD1D1D6);
-  static const Color skyTop = Color(0xFFF2F2F7);
-  static const Color skyBottom = Color(0xFFE5E5EA);
+  @override
+  State<StarPetApp> createState() => StarPetAppState();
+}
+
+class StarPetAppState extends State<StarPetApp> {
+  static StarPetAppState? of(BuildContext context) {
+    return context.findAncestorStateOfType<StarPetAppState>();
+  }
+
+  int _themeIndex = 0;
+
+  // 主题配置
+  static final List<Map<String, dynamic>> themes = [
+    {'name': '粉紫甜心', 'primary': Color(0xFFFF69B4), 'secondary': Color(0xFF9370DB), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
+    {'name': '苹果简约', 'primary': Color(0xFF000000), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
+    {'name': '清新薄荷', 'primary': Color(0xFF98FB98), 'secondary': Color(0xFF20B2AA), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
+    {'name': '天空蓝', 'primary': Color(0xFF87CEEB), 'secondary': Color(0xFF4169E1), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
+    {'name': '夕阳橙', 'primary': Color(0xFFFF6347), 'secondary': Color(0xFFFFD700), 'background': Color(0xFFF2F2F7), 'text': Color(0xFF000000), 'textSecondary': Color(0xFF8E8E93)},
+    {'name': '暗黑模式', 'primary': Color(0xFF1C1C1E), 'secondary': Color(0xFF8E8E93), 'background': Color(0xFF000000), 'text': Color(0xFFFFFFFF), 'textSecondary': Color(0xFF8E8E93)},
+  ];
+
+  Color get primaryColor => themes[_themeIndex]['primary'];
+  Color get secondaryColor => themes[_themeIndex]['secondary'];
+  Color get backgroundColor => themes[_themeIndex]['background'];
+  Color get textColor => themes[_themeIndex]['text'];
+  Color get textSecondary => themes[_themeIndex]['textSecondary'];
+
+  @override
+  void initState() {
+    super.initState();
+    _themeIndex = DataManager.getCurrentTheme();
+  }
+
+  void updateTheme(int index) {
+    setState(() => _themeIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1489,6 +1514,14 @@ class _PetListPageState extends State<PetListPage> {
             Text(pet['name'] ?? '宠物', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('查看详情'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => PetDetailPage(petIndex: index)));
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('编辑'),
               onTap: () {
@@ -1814,6 +1847,158 @@ class _AddPetPageState extends State<AddPetPage> {
   Widget _buildGrid(List<String> items, String? sel, Function(String) onTap) => Wrap(spacing: 8, runSpacing: 8, children: items.map((i) => GestureDetector(onTap: () => onTap(i), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: sel == i ? Colors.black : Colors.white, borderRadius: BorderRadius.circular(20)), child: Text(i, style: TextStyle(color: sel == i ? Colors.white : Colors.black))))).toList());
 }
 
+// ==================== 宠物详情页面 ====================
+class PetDetailPage extends StatelessWidget {
+  final int petIndex;
+  const PetDetailPage({super.key, required this.petIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    final pets = DataManager.getPets();
+    if (petIndex >= pets.length) {
+      return Scaffold(appBar: AppBar(title: const Text('宠物详情')), body: const Center(child: Text('宠物不存在')));
+    }
+    final pet = pets[petIndex];
+    final isCat = pet['type'] == 'cat';
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: Text(pet['name'] ?? '宠物详情', style: const TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.black),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddPetPage(petIndex: petIndex))),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // 宠物头像
+            Container(
+              width: 120, height: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: isCat ? [const Color(0xFFFF69B4), const Color(0xFF9370DB)] : [const Color(0xFF87CEEB), const Color(0xFF4169E1)]),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)],
+              ),
+              child: Center(child: Text(isCat ? '🐱' : '🐕', style: const TextStyle(fontSize: 60))),
+            ),
+            const SizedBox(height: 16),
+            Text(pet['name'] ?? '未命名', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTag(pet['gender'] == 'male' ? '🚹 男孩子' : '🚺 女孩子', isCat ? Colors.pink : Colors.blue),
+                const SizedBox(width: 8),
+                _buildTag(pet['breed'] ?? '未知品种', Colors.grey),
+              ],
+            ),
+            const SizedBox(height: 30),
+            
+            // 详细信息卡片
+            _buildInfoCard([
+              {'icon': Icons.pets, 'label': '类型', 'value': isCat ? '猫咪' : '狗狗'},
+              {'icon': Icons.palette, 'label': '毛色', 'value': pet['color'] ?? '未知'},
+              {'icon': Icons.star, 'label': '特点', 'value': (pet['features'] as List?)?.join('、') ?? '暂无'},
+              {'icon': Icons.calendar_today, 'label': '添加时间', 'value': pet['createdAt']?.toString().substring(0, 10) ?? '未知'},
+            ]),
+            
+            const SizedBox(height: 20),
+            
+            // 成长记录（模拟数据）
+            _buildGrowthCard(),
+            
+            const SizedBox(height: 20),
+            
+            // 趣事记录
+            _buildMemoryCard(),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTag(String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+    child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
+  );
+  
+  Widget _buildInfoCard(List<Map<String, dynamic>> items) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
+    child: Column(
+      children: items.map((item) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF2F2F7), borderRadius: BorderRadius.circular(10)), child: Icon(item['icon'], size: 20, color: Colors.grey[600])),
+          const SizedBox(width: 12),
+          Text(item['label'], style: TextStyle(color: Colors.grey[600])),
+          const Spacer(),
+          Text(item['value'], style: const TextStyle(fontWeight: FontWeight.w500)),
+        ]),
+      )).toList(),
+    ),
+  );
+  
+  Widget _buildGrowthCard() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(children: [Icon(Icons.trending_up, color: Colors.green), SizedBox(width: 8), Text('成长记录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
+        const SizedBox(height: 16),
+        _buildGrowthItem('体重', '3.5kg', '正常', Colors.green),
+        _buildGrowthItem('身高', '25cm', '正常', Colors.green),
+        _buildGrowthItem('心情', '开心 😄', '良好', Colors.orange),
+      ],
+    ),
+  );
+  
+  Widget _buildGrowthItem(String label, String value, String status, Color statusColor) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(children: [
+      Text(label, style: TextStyle(color: Colors.grey[600])),
+      const Spacer(),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+      const SizedBox(width: 12),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Text(status, style: TextStyle(color: statusColor, fontSize: 12))),
+    ]),
+  );
+  
+  Widget _buildMemoryCard() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(children: [Icon(Icons.auto_stories, color: Colors.purple), SizedBox(width: 8), Text('美好回忆', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
+        const SizedBox(height: 16),
+        _buildMemoryItem('2026-03-10', '今天第一次见到主人，好开心！'),
+        _buildMemoryItem('2026-03-08', '学会了新技能-坐下'),
+      ],
+    ),
+  );
+  
+  Widget _buildMemoryItem(String date, String content) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFF2F2F7), borderRadius: BorderRadius.circular(8)), child: Text(date, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+      const SizedBox(width: 12),
+      Expanded(child: Text(content)),
+    ]),
+  );
+}
+
 // ==================== 发帖页面 ====================
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
@@ -2127,11 +2312,13 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                 child: ElevatedButton(
                   onPressed: () async {
                     await DataManager.setTheme(_selectedTheme);
+                    // 实时刷新主题
+                    StarPetAppState.of(context)?.updateTheme(_selectedTheme);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('主题已保存，重启APP生效'), duration: Duration(seconds: 2)),
+                        SnackBar(content: Text('主题已切换为 ${_themes[_selectedTheme]['name']}'), duration: const Duration(seconds: 1)),
                       );
-                      Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context));
+                      Future.delayed(const Duration(milliseconds: 500), () => Navigator.pop(context));
                     }
                   },
                   style: ElevatedButton.styleFrom(
