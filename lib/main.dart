@@ -30,14 +30,17 @@ class DataManager {
     
     return await sqflite.openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE user(
             id INTEGER PRIMARY KEY,
             nickname TEXT,
             roles TEXT,
-            theme INTEGER DEFAULT 1
+            theme INTEGER DEFAULT 1,
+            coins INTEGER DEFAULT 1000,
+            lastSignIn TEXT,
+            signInDays INTEGER DEFAULT 0
           )
         ''');
         await db.execute('''
@@ -76,16 +79,11 @@ class DataManager {
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 3) {
-          // 创建键值表
-          try {
-            await db.execute('''
-              CREATE TABLE IF NOT EXISTS kv_store(
-                key TEXT PRIMARY KEY,
-                value TEXT
-              )
-            ''');
-          } catch(e) {}
+        if (oldVersion < 4) {
+          // 给 user 表添加新字段
+          try { await db.execute("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000"); } catch(e) {}
+          try { await db.execute("ALTER TABLE user ADD COLUMN lastSignIn TEXT"); } catch(e) {}
+          try { await db.execute("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0"); } catch(e) {}
         }
       },
     );
@@ -101,17 +99,21 @@ class DataManager {
   static Future<void> _loadData() async {
     try {
       final db = await database;
-      // 从 kv_store 加载所有用户数据
-      _userData['nickname'] = await _getKv('nickname', '点击编辑昵称');
-      final rolesStr = await _getKv('roles', '');
-      _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
-      _currentThemeIndex = int.tryParse(await _getKv('theme', '1')) ?? 1;
-      _userData['theme'] = _currentThemeIndex;
-      _userData['coins'] = int.tryParse(await _getKv('coins', '1000')) ?? 1000;
-      _userData['lastSignIn'] = await _getKv('lastSignIn', '');
-      _userData['signInDays'] = int.tryParse(await _getKv('signInDays', '0')) ?? 0;
+      // 从 user 表加载所有用户数据
+      final userList = await db.query('user', where: 'id = ?', whereArgs: [1]);
+      if (userList.isNotEmpty) {
+        final user = userList.first;
+        _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
+        final rolesStr = user['roles'] as String? ?? '';
+        _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
+        _currentThemeIndex = user['theme'] as int? ?? 1;
+        _userData['theme'] = _currentThemeIndex;
+        _userData['coins'] = user['coins'] ?? 1000;
+        _userData['lastSignIn'] = user['lastSignIn'] ?? '';
+        _userData['signInDays'] = user['signInDays'] ?? 0;
+      }
       
-      print('=== 从KV加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      print('=== 从user表加载: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
       
       // 加载宠物数据
       final petsList = await db.query('pets');
@@ -126,17 +128,18 @@ class DataManager {
     try {
       final db = await database;
       
-      // 保存到 user 表（只保存基本信息）
+      // 保存到 user 表（所有用户数据）
       await db.delete('user', where: 'id = ?', whereArgs: [1]);
-      await db.insert('user', {'id': 1, 'nickname': _userData['nickname'] ?? '点击编辑昵称', 'roles': (_userData['roles'] as List<String>).join(','), 'theme': _currentThemeIndex});
-      // 所有用户数据都存到 kv_store
-      await _setKv('nickname', _userData['nickname'] ?? '点击编辑昵称');
-      await _setKv('roles', (_userData['roles'] as List<String>).join(','));
-      await _setKv('theme', _currentThemeIndex.toString());
-      await _setKv('coins', (_userData['coins'] ?? 1000).toString());
-      await _setKv('lastSignIn', _userData['lastSignIn'] ?? '');
-      await _setKv('signInDays', (_userData['signInDays'] ?? 0).toString());
-      print('=== 保存到KV: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      await db.insert('user', {
+        'id': 1,
+        'nickname': _userData['nickname'] ?? '点击编辑昵称',
+        'roles': (_userData['roles'] as List<String>).join(','),
+        'theme': _currentThemeIndex,
+        'coins': _userData['coins'] ?? 1000,
+        'lastSignIn': _userData['lastSignIn'] ?? '',
+        'signInDays': _userData['signInDays'] ?? 0,
+      });
+      print('=== 保存到user表: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -2303,8 +2306,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 25;
-  static const String currentVersion = '1.5.0';
+  static const int currentVersionCode = 27;
+  static const String currentVersion = '1.5.2';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
