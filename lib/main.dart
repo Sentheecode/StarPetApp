@@ -128,18 +128,33 @@ class DataManager {
     try {
       final db = await database;
       
-      // 保存到 user 表（所有用户数据）
+      // 确保字段存在
+      try { await db.execute("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000"); } catch(e) {}
+      try { await db.execute("ALTER TABLE user ADD COLUMN lastSignIn TEXT"); } catch(e) {}
+      try { await db.execute("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0"); } catch(e) {}
+      
+      final nickname = _userData['nickname'] ?? '点击编辑昵称';
+      final roles = (_userData['roles'] as List<String>?)?.join(',') ?? '';
+      final theme = _currentThemeIndex;
+      final coins = _userData['coins'] ?? 1000;
+      final lastSignIn = _userData['lastSignIn'] ?? '';
+      final signInDays = _userData['signInDays'] ?? 0;
+      
+      print('=== 保存前: nickname=$nickname, roles=$roles, theme=$theme, coins=$coins ===');
+      
+      // 删除旧记录
       await db.delete('user', where: 'id = ?', whereArgs: [1]);
+      // 插入新记录
       await db.insert('user', {
         'id': 1,
-        'nickname': _userData['nickname'] ?? '点击编辑昵称',
-        'roles': (_userData['roles'] as List<String>).join(','),
-        'theme': _currentThemeIndex,
-        'coins': _userData['coins'] ?? 1000,
-        'lastSignIn': _userData['lastSignIn'] ?? '',
-        'signInDays': _userData['signInDays'] ?? 0,
+        'nickname': nickname,
+        'roles': roles,
+        'theme': theme,
+        'coins': coins,
+        'lastSignIn': lastSignIn,
+        'signInDays': signInDays,
       });
-      print('=== 保存到user表: nickname=${_userData['nickname']}, theme=$_currentThemeIndex, coins=${_userData['coins']}, signInDays=${_userData['signInDays']} ===');
+      print('=== 保存到user表成功 ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
