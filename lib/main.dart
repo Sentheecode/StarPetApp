@@ -74,7 +74,9 @@ class DataManager {
         final rolesStr = user['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
         // 加载主题
-        _currentThemeIndex = (user['theme'] as int?) ?? 0;
+        final themeFromDb = user['theme'];
+        print('=== DB中theme字段: $themeFromDb (类型: ${themeFromDb.runtimeType}) ===');
+        _currentThemeIndex = (themeFromDb as int?) ?? 0;
         _userData['theme'] = _currentThemeIndex;
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
@@ -2153,7 +2155,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 10;
+  static const int currentVersionCode = 15;
+  static const String currentVersion = '1.3.5';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2556,12 +2559,16 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
+                    print('=== 点击保存: _selectedTheme=$_selectedTheme ===');
                     await DataManager.setTheme(_selectedTheme);
                     // 实时刷新主题
                     StarPetApp.updateTheme(_selectedTheme);
+                    // 验证保存
+                    final saved = DataManager.getCurrentTheme();
+                    print('=== 保存后验证: saved=$saved ===');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('主题已切换为 ${_themes[_selectedTheme]['name']}'), duration: const Duration(seconds: 1)),
+                        SnackBar(content: Text('已保存为 ${_themes[_selectedTheme]['name']} (index: $_selectedTheme)'), duration: const Duration(seconds: 1)),
                       );
                       Future.delayed(const Duration(milliseconds: 500), () => Navigator.pop(context));
                     }
@@ -2771,7 +2778,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
             const SizedBox(height: 20),
             Text('星宠', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('版本 ${OTAUpdater.currentVersionCode <= 9 ? '1.0.' + OTAUpdater.currentVersionCode.toString() : '1.0.' + OTAUpdater.currentVersionCode.toString()} | 主题: ${StarPetApp.currentThemeIndex}', style: TextStyle(color: Colors.grey)),
+            Text('版本 ${OTAUpdater.currentVersion} | 主题: ${StarPetApp.currentThemeIndex}', style: TextStyle(color: Colors.grey)),
             if (_hasUpdate) ...[
               const SizedBox(height: 8),
               GestureDetector(
