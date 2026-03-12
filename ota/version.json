@@ -1,7 +1,7 @@
 {
-  "version": "1.4.6",
-  "versionCode": 21,
-  "releaseNote": "使用 rawQuery 修复数据保存",
+  "version": "1.4.7",
+  "versionCode": 22,
+  "releaseNote": "保存前确保字段存在",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

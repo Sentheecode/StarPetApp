@@ -158,6 +158,12 @@ class DataManager {
   static Future<void> _saveData() async {
     try {
       final db = await database;
+      
+      // 先确保字段存在
+      try { await db.rawQuery("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000"); } catch(e) {}
+      try { await db.rawQuery("ALTER TABLE user ADD COLUMN lastSignIn TEXT DEFAULT ''"); } catch(e) {}
+      try { await db.rawQuery("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0"); } catch(e) {}
+      
       // 保存用户数据
       final coins = _userData['coins'] ?? 1000;
       final lastSignIn = _userData['lastSignIn'] ?? '';
@@ -165,7 +171,7 @@ class DataManager {
       
       print('=== 保存到DB前: coins=$coins (${coins.runtimeType}), signInDays=$signInDays (${signInDays.runtimeType}) ===');
       
-      // 使用 rawQuery 直接更新，确保字段存在
+      // 使用 rawQuery 直接更新
       await db.rawUpdate('''
         UPDATE user SET 
           nickname = ?,
@@ -2316,8 +2322,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 21;
-  static const String currentVersion = '1.4.6';
+  static const int currentVersionCode = 22;
+  static const String currentVersion = '1.4.7';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
