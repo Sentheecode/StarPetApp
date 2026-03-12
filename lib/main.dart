@@ -221,23 +221,17 @@ class DataManager {
   static Future<Map<String, dynamic>> getRawUserData() async {
     try {
       final db = await database;
-      // 获取 user 表
+      // 只获取 user 表
       final userResult = await db.query('user', where: 'id = ?', whereArgs: [1]);
-      // 获取 kv_store
-      final kvResult = await db.query('kv_store');
-      final Map<String, dynamic> data = {};
       if (userResult.isNotEmpty) {
-        data.addAll(userResult.first);
+        return userResult.first;
       }
-      for (var row in kvResult) {
-        data[row['key'].toString()] = row['value'];
-      }
-      return data;
     } catch (e) {
-      print('读取原始用户数据失败: $e');
+      print('读取user表失败: $e');
     }
     return {};
   }
+  
   static bool canSignIn() {
     final last = getLastSignIn();
     if (last.isEmpty) return true;
