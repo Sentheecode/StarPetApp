@@ -17,6 +17,8 @@ dependencies:
   # 数据持久化
   sqflite: ^2.4.1
   path: ^1.9.0
+  supabase_flutter: ^2.0.0
+  shared_preferences: ^2.2.2
   
   # 网络
   http: ^1.2.2

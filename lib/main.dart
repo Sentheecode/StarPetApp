@@ -6,10 +6,12 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
   static Database? _database;
+  static SharedPreferences? _prefs;
   static Map<String, dynamic> _userData = {'nickname': '点击编辑昵称', 'roles': <String>[]};
   static List<Map<String, dynamic>> _petsData = [];
   static List<Map<String, dynamic>> _postsData = [
@@ -201,22 +203,19 @@ class DataManager {
   // 键值存储辅助方法
   static Future<void> _setKv(String key, String value) async {
     try {
-      final db = await database;
-      await db.insert('kv_store', {'key': key, 'value': value}, conflictAlgorithm: ConflictAlgorithm.replace);
+      _prefs ??= await SharedPreferences.getInstance();
+      await _prefs!.setString(key, value);
     } catch (e) {
-      print('保存kv失败: $key=$value, error=$e');
+      print('保存失败: $key=$value, error=$e');
     }
   }
   
   static Future<String> _getKv(String key, String defaultValue) async {
     try {
-      final db = await database;
-      final result = await db.query('kv_store', where: 'key = ?', whereArgs: [key]);
-      if (result.isNotEmpty) {
-        return result.first['value']?.toString() ?? defaultValue;
-      }
+      _prefs ??= await SharedPreferences.getInstance();
+      return _prefs!.getString(key) ?? defaultValue;
     } catch (e) {
-      print('读取kv失败: $key, error=$e');
+      print('读取失败: $key, error=$e');
     }
     return defaultValue;
   }
