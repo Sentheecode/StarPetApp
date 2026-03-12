@@ -1,7 +1,7 @@
 {
-  "version": "1.4.1",
-  "versionCode": 16,
-  "releaseNote": "修复签到和家园数据持久化",
+  "version": "1.4.2",
+  "versionCode": 17,
+  "releaseNote": "修复数据库升级问题",
   "downloadUrl": "http://100.64.77.197:8080/app-release.apk",
   "forceUpdate": false
 }

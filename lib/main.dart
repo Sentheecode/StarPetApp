@@ -30,7 +30,7 @@ class DataManager {
     
     return await sqflite.openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE user(
@@ -72,6 +72,36 @@ class DataManager {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          try {
+            // 尝试添加新字段（如果已存在会忽略）
+            await db.rawQuery("ALTER TABLE user ADD COLUMN coins INTEGER DEFAULT 1000");
+          } catch(e) {}
+          try {
+            await db.rawQuery("ALTER TABLE user ADD COLUMN lastSignIn TEXT");
+          } catch(e) {}
+          try {
+            await db.rawQuery("ALTER TABLE user ADD COLUMN signInDays INTEGER DEFAULT 0");
+          } catch(e) {}
+          try {
+            // 创建家园表
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS home_items(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                itemId INTEGER,
+                name TEXT,
+                icon TEXT,
+                price INTEGER,
+                category TEXT,
+                x REAL,
+                y REAL,
+                uid INTEGER
+              )
+            ''');
+          } catch(e) {}
+        }
+      },
     );
   }
   
@@ -101,6 +131,7 @@ class DataManager {
         _userData['coins'] = user['coins'] ?? 1000;
         _userData['lastSignIn'] = user['lastSignIn'] ?? '';
         _userData['signInDays'] = user['signInDays'] ?? 0;
+        print('=== 从DB加载: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
         print('=== 从数据库加载主题: $_currentThemeIndex ===');
       }
       // 加载宠物数据
@@ -129,7 +160,7 @@ class DataManager {
         where: 'id = ?',
         whereArgs: [1],
       );
-      print('=== 保存主题到数据库: $_currentThemeIndex ===');
+      print('=== 保存到DB: coins=${_userData['coins']}, signInDays=${_userData['signInDays']}, lastSignIn=${_userData['lastSignIn']} ===');
     } catch (e) {
       print('保存数据失败: $e');
     }
@@ -2245,8 +2276,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 class OTAUpdater {
   // 改成你的Tailscale IP
   static const String baseUrl = 'http://100.64.77.197:8080';
-  static const int currentVersionCode = 16;
-  static const String currentVersion = '1.4.1';
+  static const int currentVersionCode = 17;
+  static const String currentVersion = '1.4.2';
   
   // 启动时检测更新
   static Future<void> checkUpdateOnStart() async {
@@ -2363,6 +2394,7 @@ class HomeData {
         'y': item['y'],
         'uid': item['uid'],
       }).toList();
+      print('=== 加载家园物品: ${placedItems.length} 个 ===');
     } catch (e) {
       print('加载家园数据失败: $e');
     }
