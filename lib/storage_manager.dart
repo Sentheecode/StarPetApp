@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path_pkg;
 
 enum StorageType { sqlite, json }
@@ -11,10 +10,13 @@ class StorageManager {
   static StorageType _currentType = StorageType.json;
   static late SharedPreferences _prefs;
   static String? _jsonFilePath;
+  static bool _initialized = false;
   
   static StorageType get currentType => _currentType;
   
   static Future<void> init() async {
+    if (_initialized) return;
+    
     _prefs = await SharedPreferences.getInstance();
     final savedType = _prefs.getString('storage_type');
     if (savedType != null) {
@@ -26,6 +28,7 @@ class StorageManager {
     // Initialize JSON file path
     final dir = await getApplicationDocumentsDirectory();
     _jsonFilePath = path_pkg.join(dir.path, 'starpet_data.json');
+    _initialized = true;
   }
   
   static Future<void> setStorageType(StorageType type) async {
@@ -45,7 +48,11 @@ class StorageManager {
   // JSON 文件操作
   static Future<Map<String, dynamic>> loadJsonData() async {
     try {
-      if (_jsonFilePath == null) await init();
+      if (!_initialized) await init();
+      if (_jsonFilePath == null) {
+        final dir = await getApplicationDocumentsDirectory();
+        _jsonFilePath = path_pkg.join(dir.path, 'starpet_data.json');
+      }
       final file = File(_jsonFilePath!);
       if (await file.exists()) {
         final content = await file.readAsString();
@@ -59,7 +66,11 @@ class StorageManager {
   
   static Future<void> saveJsonData(Map<String, dynamic> data) async {
     try {
-      if (_jsonFilePath == null) await init();
+      if (!_initialized) await init();
+      if (_jsonFilePath == null) {
+        final dir = await getApplicationDocumentsDirectory();
+        _jsonFilePath = path_pkg.join(dir.path, 'starpet_data.json');
+      }
       final file = File(_jsonFilePath!);
       await file.writeAsString(json.encode(data));
       print('JSON数据已保存');

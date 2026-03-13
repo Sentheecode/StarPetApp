@@ -94,24 +94,9 @@ class DataManager {
   }
   
   static Future<void> init() async {
-    // 初始化存储管理器
-    await StorageManager.init();
-    
-    // 加载数据
-    try {
-      await _loadData().timeout(const Duration(seconds: 5), onTimeout: () {
-        print('加载数据超时，使用本地默认值');
-      });
-    } catch(e) {
-      print('加载数据失败: $e');
-    }
-    try {
-      await HomeData.loadItems().timeout(const Duration(seconds: 5), onTimeout: () {
-        print('加载家园数据超时');
-      });
-    } catch(e) {
-      print('加载家园失败: $e');
-    }
+    // 直接加载数据，不阻塞
+    _loadData();
+    HomeData.loadItems();
   }
   
   // 加载数据
