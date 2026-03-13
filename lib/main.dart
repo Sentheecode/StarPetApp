@@ -94,8 +94,10 @@ class DataManager {
   }
   
   static Future<void> init() async {
-    await database;
-    // 加超时，网络不通时最多等5秒
+    // 初始化存储管理器
+    await StorageManager.init();
+    
+    // 加载数据
     try {
       await _loadData().timeout(const Duration(seconds: 5), onTimeout: () {
         print('加载数据超时，使用本地默认值');
