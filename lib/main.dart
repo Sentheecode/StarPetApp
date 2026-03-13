@@ -7,13 +7,11 @@ import 'package:path/path.dart' as path_pkg;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'storage_manager.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
-  static const _supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: '7OtnNr9klgQjijemUdMGcSfBVsJi440WGndCzKKZuiED+88zNCW/83GrMEFcNe88ST/8w0XqXui+yBJg+XmIKw==');
-  static final _supabase = SupabaseClient('https://xitslotqqmxakthbvurd.supabase.co', _supabaseKey);
   static Database? _database;
   static SharedPreferences? _prefs;
   static Map<String, dynamic> _userData = {'nickname': '点击编辑昵称', 'roles': <String>[]};
@@ -117,42 +115,24 @@ class DataManager {
   // 加载数据
   static Future<void> _loadData() async {
     try {
-      // 并行加载所有数据
-      final results = await Future.wait([
-        _supabase.from('user').select().eq('id', 1),
-        _supabase.from('pets').select().eq('user_id', 1),
-        _supabase.from('pet_attrs').select(),
-      ]);
+      // 使用 JSON 文件存储
+      final data = await StorageManager.loadJsonData();
       
-      final userResp = results[0];
-      final petsResp = results[1];
-      final attrsResp = results[2];
-      
-      // 用户数据
-      if (userResp.isNotEmpty) {
-        final user = userResp[0];
-        _userData['nickname'] = user['nickname'] ?? '点击编辑昵称';
-        final rolesStr = user['roles'] as String? ?? '';
+      if (data.isNotEmpty) {
+        _userData['nickname'] = data['nickname'] ?? '点击编辑昵称';
+        final rolesStr = data['roles'] as String? ?? '';
         _userData['roles'] = rolesStr.isEmpty ? <String>[] : rolesStr.split(',');
-        _currentThemeIndex = user['theme'] as int? ?? 1;
+        _currentThemeIndex = data['theme'] as int? ?? 1;
         StarPetApp.updateTheme(_currentThemeIndex);
-        _userData['coins'] = user['coins'] ?? 1000;
-        _userData['lastSignIn'] = user['lastSignIn'] ?? '';
-        _userData['signInDays'] = user['signInDays'] ?? 0;
+        _userData['coins'] = data['coins'] ?? 1000;
+        _userData['lastSignIn'] = data['lastSignIn'] ?? '';
+        _userData['signInDays'] = data['signInDays'] ?? 0;
+        
+        // 加载宠物数据
+        _petsData = (data['pets'] as List<dynamic>?)?.map((p) => Map<String, dynamic>.from(p)).toList() ?? [];
+        
+        print('从JSON加载用户数据: ${_userData['nickname']}, ${_petsData.length}只宠物');
       }
-      
-      // 宠物数据
-      _petsData = petsResp.map((pet) {
-        final petId = pet['id'];
-        final attrs = attrsResp.where((a) => a['pet_id'] == petId).toList();
-        for (var attr in attrs) {
-          if (attr['attr_name'] == '毛色') pet['color'] = attr['attr_value'];
-          if (attr['attr_name'] == '性格') pet['feature'] = attr['attr_value'];
-        }
-        return Map<String, dynamic>.from(pet);
-      }).toList();
-      
-      
     } catch (e) {
       print('加载数据失败: $e');
     }
@@ -168,75 +148,31 @@ class DataManager {
       final lastSignIn = _userData['lastSignIn'] ?? '';
       final signInDays = _userData['signInDays'] ?? 0;
       
+      // 保存到 JSON 文件
+      final data = {
+        'nickname': nickname,
+        'roles': roles,
+        'theme': theme,
+        'coins': coins,
+        'lastSignIn': lastSignIn,
+        'signInDays': signInDays,
+        'pets': _petsData,
+      };
       
-      
-      // 检查用户是否存在
-      final existing = await _supabase.from('user').select().eq('id', 1);
-      if (existing.isEmpty) {
-        // 创建新用户
-        await _supabase.from('user').insert({
-          'id': 1,
-          'nickname': nickname,
-          'roles': roles,
-          'theme': theme,
-          'coins': coins,
-          'lastSignIn': lastSignIn,
-          'signInDays': signInDays,
-        });
-        
-      } else {
-        // 更新用户
-        await _supabase.from('user').update({
-          'nickname': nickname,
-          'roles': roles,
-          'theme': theme,
-          'coins': coins,
-          'lastSignIn': lastSignIn,
-          'signInDays': signInDays,
-        }).eq('id', 1);
-      }
+      await StorageManager.saveJsonData(data);
+      print('用户数据已保存到JSON: $nickname, $roles, $coins');
     } catch (e) {
-      // 保存失败静默处理
+      print('保存用户数据失败: $e');
     }
   }
   
-  // 宠物单独保存 (优化: 使用upsert批量操作)
+  // 宠物单独保存
   static Future<void> _savePets() async {
     try {
       if (_petsData.isEmpty) return;
-      
-      // 准备批量数据
-      final petsToInsert = _petsData.map((pet) => {
-        'name': pet['name'] ?? '宠物',
-        'type': pet['type'] ?? 'cat',
-        'gender': pet['gender'] ?? 'female',
-        'breed': pet['breed'] ?? '',
-        'user_id': 1,
-      }).toList();
-      
-      // 批量upsert
-      await _supabase.from('pets').upsert(petsToInsert, onConflict: 'id');
-      
-      // 重新查询获取ID
-      final savedPets = await _supabase.from('pets').select().eq('user_id', 1);
-      
-      // 批量保存属性
-      final attrsToInsert = <Map<String, dynamic>>[];
-      for (var pet in savedPets) {
-        final localPet = _petsData.firstWhere((p) => p['name'] == pet['name'], orElse: () => {});
-        if (localPet['color'] != null && localPet['color'].toString().isNotEmpty) {
-          attrsToInsert.add({'pet_id': pet['id'], 'attr_name': '毛色', 'attr_value': localPet['color']});
-        }
-        if (localPet['feature'] != null && localPet['feature'].toString().isNotEmpty) {
-          attrsToInsert.add({'pet_id': pet['id'], 'attr_name': '性格', 'attr_value': localPet['feature']});
-        }
-      }
-      
-      if (attrsToInsert.isNotEmpty) {
-        await _supabase.from('pet_attrs').upsert(attrsToInsert, onConflict: 'id');
-      }
+      print('宠物数据已保存: ${_petsData.length}只');
     } catch (e) {
-      throw Exception('保存失败: $e');
+      print('保存宠物失败: $e');
     }
   }
   
@@ -252,26 +188,9 @@ class DataManager {
   }
   static Future<bool> saveAndGetResult() async {
     try {
-      final nickname = _userData['nickname'] ?? '点击编辑昵称';
-      final roles = (_userData['roles'] as List<String>?)?.join(',') ?? '';
-      final theme = _currentThemeIndex;
-      final coins = _userData['coins'] ?? 1000;
-      final lastSignIn = _userData['lastSignIn'] ?? '';
-      final signInDays = _userData['signInDays'] ?? 0;
-      
-      final existing = await _supabase.from('user').select().eq('id', 1);
-      if (existing.isEmpty) {
-        await _supabase.from('user').insert({
-          'id': 1, 'nickname': nickname, 'roles': roles, 'theme': theme, 'coins': coins, 'lastSignIn': lastSignIn, 'signInDays': signInDays,
-        });
-      } else {
-        await _supabase.from('user').update({
-          'nickname': nickname, 'roles': roles, 'theme': theme, 'coins': coins, 'lastSignIn': lastSignIn, 'signInDays': signInDays,
-        }).eq('id', 1);
-      }
+      await _saveData();
       return true;
     } catch (e) {
-      
       return false;
     }
   }
@@ -327,13 +246,9 @@ class DataManager {
   // 直接从数据库读取（用于调试）
   static Future<Map<String, dynamic>> getRawUserData() async {
     try {
-      // 从 Supabase 获取用户数据
-      final response = await _supabase.from('user').select().eq('id', 1);
-      if (response.isNotEmpty) {
-        return Map<String, dynamic>.from(response[0]);
-      }
+      return await StorageManager.loadJsonData();
     } catch (e) {
-      print('读取Supabase失败: $e');
+      print('读取JSON失败: $e');
     }
     return {};
   }
@@ -392,11 +307,9 @@ class DataManager {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 初始化 Supabase
-  await Supabase.initialize(
-    url: 'https://xitslotqqmxakthbvurd.supabase.co',
-    anonKey: const String.fromEnvironment('SUPABASE_KEY', defaultValue: '7OtnNr9klgQjijemUdMGcSfBVsJi440WGndCzKKZuiED+88zNCW/83GrMEFcNe88ST/8w0XqXui+yBJg+XmIKw=='),
-  );
+  
+  // 初始化存储管理器
+  await StorageManager.init();
   
   // 显示启动画面
   runApp(const SplashScreen());
@@ -2834,16 +2747,40 @@ class _AddPetPageState extends State<AddPetPage> {
   }
   
   Future<void> _loadBreeds() async {
-    try {
-      final resp = await DataManager._supabase.from('pet_breeds').select();
-      setState(() {
-        _breedsList = List<Map<String, dynamic>>.from(resp);
-        _loadingBreeds = false;
-      });
-    } catch(e) {
-      print('加载品种失败: $e');
-      setState(() => _loadingBreeds = false);
-    }
+    // 使用本地品种数据
+    setState(() {
+      _breedsList = [
+        {'id': 1, 'type': 'cat', 'name': '英国短毛猫'},
+        {'id': 2, 'type': 'cat', 'name': '美国短毛猫'},
+        {'id': 3, 'type': 'cat', 'name': '波斯猫'},
+        {'id': 4, 'type': 'cat', 'name': '暹罗猫'},
+        {'id': 5, 'type': 'cat', 'name': '布偶猫'},
+        {'id': 6, 'type': 'cat', 'name': '缅因猫'},
+        {'id': 7, 'type': 'cat', 'name': '苏格兰折耳猫'},
+        {'id': 8, 'type': 'cat', 'name': '俄罗斯蓝猫'},
+        {'id': 9, 'type': 'cat', 'name': '挪威森林猫'},
+        {'id': 10, 'type': 'cat', 'name': '中华田园猫'},
+        {'id': 11, 'type': 'dog', 'name': '金毛寻回犬'},
+        {'id': 12, 'type': 'dog', 'name': '拉布拉多'},
+        {'id': 13, 'type': 'dog', 'name': '柯基'},
+        {'id': 14, 'type': 'dog', 'name': '哈士奇'},
+        {'id': 15, 'type': 'dog', 'name': '萨摩耶'},
+        {'id': 16, 'type': 'dog', 'name': '柴犬'},
+        {'id': 17, 'type': 'dog', 'name': '边境牧羊犬'},
+        {'id': 18, 'type': 'dog', 'name': '贵宾犬'},
+        {'id': 19, 'type': 'dog', 'name': '比熊犬'},
+        {'id': 20, 'type': 'dog', 'name': '中华田园犬'},
+        {'id': 101, 'type': 'color', 'name': '白色'},
+        {'id': 102, 'type': 'color', 'name': '黑色'},
+        {'id': 103, 'type': 'color', 'name': '灰色'},
+        {'id': 104, 'type': 'color', 'name': '橘色'},
+        {'id': 105, 'type': 'color', 'name': '三花'},
+        {'id': 106, 'type': 'color', 'name': '奶牛'},
+        {'id': 107, 'type': 'color', 'name': '虎斑'},
+        {'id': 108, 'type': 'color', 'name': '玳瑁'},
+      ];
+      _loadingBreeds = false;
+    });
   }
   
   List<String> get _breeds {
@@ -3499,17 +3436,10 @@ class HomeData {
   // 持久化
   static Future<void> loadItems() async {
     try {
-      final items = await DataManager._supabase.from('home_items').select().eq('user_id', 1);
-      placedItems = items.map((item) => {
-        'id': item['itemId'],
-        'name': item['name'],
-        'icon': item['icon'],
-        'price': item['price'],
-        'category': item['category'],
-        'x': item['x'],
-        'y': item['y'],
-        'uid': item['uid'],
-      }).toList();
+      final data = await StorageManager.loadJsonData();
+      final items = (data['homeItems'] as List<dynamic>?) ?? [];
+      placedItems = items.map((item) => Map<String, dynamic>.from(item)).toList();
+      print('从JSON加载家园数据: ${placedItems.length}个物品');
     } catch (e) {
       print('加载家园数据失败: $e');
     }
@@ -3518,21 +3448,12 @@ class HomeData {
   static Future<void> saveItems() async {
     if (placedItems.isEmpty) return;
     try {
-      // 批量插入
-      final itemsToInsert = placedItems.map((item) => {
-        'itemId': item['id'],
-        'name': item['name'],
-        'icon': item['icon'],
-        'price': item['price'],
-        'category': item['category'],
-        'x': item['x'],
-        'y': item['y'],
-        'uid': item['uid'],
-        'user_id': 1,
-      }).toList();
-      await DataManager._supabase.from('home_items').upsert(itemsToInsert, onConflict: 'uid');
+      final data = await StorageManager.loadJsonData();
+      data['homeItems'] = placedItems;
+      await StorageManager.saveJsonData(data);
+      print('家园数据已保存到JSON');
     } catch (e) {
-      
+      print('保存家园数据失败: $e');
     }
   }
 }
