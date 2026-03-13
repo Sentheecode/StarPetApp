@@ -12,7 +12,7 @@ import 'package:geolocator/geolocator.dart';
 
 // ==================== 数据管理 ====================
 class DataManager {
-  static const _supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: 'YOUR_SUPABASE_KEY_HERE');
+  static const _supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: '7OtnNr9klgQjijemUdMGcSfBVsJi440WGndCzKKZuiED+88zNCW/83GrMEFcNe88ST/8w0XqXui+yBJg+XmIKw==');
   static final _supabase = SupabaseClient('https://xitslotqqmxakthbvurd.supabase.co', _supabaseKey);
   static Database? _database;
   static SharedPreferences? _prefs;
@@ -395,7 +395,7 @@ void main() async {
   // 初始化 Supabase
   await Supabase.initialize(
     url: 'https://xitslotqqmxakthbvurd.supabase.co',
-    anonKey: const String.fromEnvironment('SUPABASE_KEY', defaultValue: 'YOUR_SUPABASE_KEY_HERE'),
+    anonKey: const String.fromEnvironment('SUPABASE_KEY', defaultValue: '7OtnNr9klgQjijemUdMGcSfBVsJi440WGndCzKKZuiED+88zNCW/83GrMEFcNe88ST/8w0XqXui+yBJg+XmIKw=='),
   );
   
   // 显示启动画面
