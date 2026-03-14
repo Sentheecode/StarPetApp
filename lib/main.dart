@@ -15,6 +15,8 @@ import 'services/data_manager.dart';
 import 'services/ota_updater.dart';
 import 'services/home_data.dart';
 import 'services/notification_service.dart';
+import 'widgets/corgi_pet.dart';
+import 'pages/pet_showcase_page.dart';
 import 'pages/theme_settings_page.dart';
 import 'pages/sign_in_page.dart';
 import 'pages/achievements_page.dart';
@@ -956,6 +958,7 @@ class _HomePageState extends State<HomePage> {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey, width: 1),
         boxShadow: [
           BoxShadow(
             color: StarPetApp.primaryColor.withValues(alpha: 0.15),
@@ -978,16 +981,22 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // 云朵装饰
-            const Positioned(
-              top: 30,
-              left: 40,
-              child: Text('☁️', style: TextStyle(fontSize: 40)),
-            ),
-            const Positioned(
-              top: 60,
-              right: 60,
-              child: Text('☁️', style: TextStyle(fontSize: 30)),
+            // 宠物动画 - 柯基
+            Positioned(
+              bottom: 150,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                  },
+                  child: const CorgiPet(
+                    size: 100,
+                    isWalking: false,
+                  ),
+                ),
+              ),
             ),
             // 地面
             Positioned(
@@ -1024,54 +1033,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // 猫咪图片1
-            Positioned(
-              bottom: 60,
-              left: 30,
-              child: Image.asset(
-                'assets/pets/cat/british_short/british_short_01.png',
-                width: 100,
-                height: 100,
-                fit: BoxFit.contain,
-              ),
-            ),
-            // 精灵图动画
-            Positioned(
-              bottom: 60,
-              left: 30,
-              child: Image.asset(
-                'assets/pets/cat/british_short/british_short_01_frame$_petFrameIndex.png',
-                width: 100,
-                height: 100,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 72)),
-              ),
-            ),
-            // 第二只猫
-            Positioned(
-              bottom: 40,
-              right: 40,
-              child: Image.asset(
-                'assets/pets/cat/british_short/british_short_02_frame1.png',
-                width: 80,
-                height: 80,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 56)),
-              ),
-            ),
-            // 猫咪图片3
-            Positioned(
-              bottom: 80,
-              right: 80,
-              child: Image.asset(
-                'assets/pets/cat/british_short/british_short_03.png',
-                width: 60,
-                height: 60,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Text('🐱', style: TextStyle(fontSize: 40)),
-              ),
-            ),
-            // 家具 - 猫爬架
             const Positioned(
               bottom: 30,
               right: 150,

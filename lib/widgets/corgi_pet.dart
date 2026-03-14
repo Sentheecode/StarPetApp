@@ -23,7 +23,7 @@ class _CorgiPetState extends State<CorgiPet> with TickerProviderStateMixin {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: widget.isWalking ? 400 : 800),
+      duration: Duration(milliseconds: widget.isWalking ? 600 : 1200), // 放慢动画速度
     )..repeat();
   }
   
