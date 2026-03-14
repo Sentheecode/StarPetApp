@@ -22,6 +22,8 @@ import 'pages/notifications_page.dart';
 import 'pages/help_feedback_page.dart';
 import 'pages/debug_page.dart';
 import 'pages/blacklist_page.dart';
+import 'pages/recommend_mall_page.dart';
+import 'pages/pet_mall_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
