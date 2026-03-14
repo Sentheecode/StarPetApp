@@ -295,11 +295,11 @@ class DataManager {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 初始化存储管理器
-  await StorageManager.init();
+  // 直接启动应用，后台加载数据
+  DataManager.init();
+  OTAUpdater.checkUpdateOnStart();
   
-  // 显示启动画面
-  runApp(const SplashScreen());
+  runApp(const StarPetApp());
 }
 
 class SplashScreen extends StatefulWidget {
