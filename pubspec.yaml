@@ -1,7 +1,7 @@
 name: star_pet
 description: "星宠 - 日式像素风宠物社交App"
 publish_to: 'none'
-version: 3.5.0
+version: 3.6.0
 
 environment:
   sdk: ^3.11.1
@@ -53,3 +53,5 @@ flutter:
     - assets/pets/cat/british_short/
     - assets/images/corgi_idle/
     - assets/images/corgi_walk/
+    - assets/images/pomeranian_idle/
+    - assets/images/pomeranian_walk/

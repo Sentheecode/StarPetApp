@@ -16,6 +16,7 @@ import 'services/ota_updater.dart';
 import 'services/home_data.dart';
 import 'services/notification_service.dart';
 import 'widgets/corgi_pet.dart';
+import 'widgets/pomeranian_pet.dart';
 import 'pages/pet_showcase_page.dart';
 import 'pages/theme_settings_page.dart';
 import 'pages/sign_in_page.dart';
@@ -981,20 +982,37 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // 宠物动画 - 柯基
+            // 宠物动画 - 柯基和博美
             Positioned(
               bottom: 150,
               left: 0,
               right: 0,
               child: Center(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
-                  },
-                  child: const CorgiPet(
-                    size: 100,
-                    isWalking: false,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 柯基
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                      },
+                      child: const CorgiPet(
+                        size: 80,
+                        isWalking: false,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    // 博美
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                      },
+                      child: const PomeranianPet(
+                        size: 60,
+                        isWalking: false,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
