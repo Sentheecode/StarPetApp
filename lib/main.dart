@@ -17,6 +17,7 @@ import 'services/home_data.dart';
 import 'services/notification_service.dart';
 import 'widgets/corgi_pet.dart';
 import 'widgets/pomeranian_pet.dart';
+import 'widgets/furniture_item.dart';
 import 'widgets/pomeranian_bw_pet.dart';
 import 'pages/pet_showcase_page.dart';
 import 'pages/theme_settings_page.dart';
@@ -983,9 +984,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // 宠物动画 - 柯基和博美
+            // 宠物动画 - 柯基和博美（缩小版）
             Positioned(
-              bottom: 150,
+              bottom: 120,
               left: 0,
               right: 0,
               child: Center(
@@ -998,35 +999,59 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
                       },
                       child: const CorgiPet(
-                        size: 80,
+                        size: 50,
                         isWalking: false,
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 15),
                     // 博美（铁包银）
                     GestureDetector(
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
                       },
                       child: const PomeranianPet(
-                        size: 60,
+                        size: 40,
                         isWalking: false,
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 15),
                     // 博美（黑白）
                     GestureDetector(
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
                       },
                       child: const PomeranianBWPet(
-                        size: 50,
+                        size: 35,
                         isWalking: false,
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+            // 家具 - 床（长按拖动）
+            FurnitureItem(
+              emoji: '🛏️',
+              size: 50,
+              initialX: 20,
+              initialY: 200,
+              name: '床',
+            ),
+            // 家具 - 桌子（长按拖动）
+            FurnitureItem(
+              emoji: '🪑',
+              size: 40,
+              initialX: 150,
+              initialY: 180,
+              name: '椅子',
+            ),
+            // 家具 - 衣柜（长按拖动）
+            FurnitureItem(
+              emoji: '🚪',
+              size: 45,
+              initialX: 250,
+              initialY: 150,
+              name: '衣柜',
             ),
             // 地面
             Positioned(
