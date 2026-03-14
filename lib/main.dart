@@ -14,6 +14,7 @@ import 'utils/constants.dart';
 import 'services/data_manager.dart';
 import 'services/ota_updater.dart';
 import 'services/home_data.dart';
+import 'pages/theme_settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
