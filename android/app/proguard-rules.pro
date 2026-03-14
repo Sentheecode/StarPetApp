@@ -17,3 +17,7 @@
 
 # http
 -keep class io.flutter.plugins.httplifecycle.** { *; }
+
+# Google Play Core - 忽略缺失的类
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
