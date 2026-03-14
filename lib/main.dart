@@ -118,7 +118,13 @@ class DataManager {
         // 加载宠物数据
         _petsData = (data['pets'] as List<dynamic>?)?.map((p) => Map<String, dynamic>.from(p)).toList() ?? [];
         
-        print('从JSON加载用户数据: ${_userData['nickname']}, ${_petsData.length}只宠物');
+        // 加载疫苗数据
+        _vaccinesData = (data['vaccines'] as List<dynamic>?)?.map((v) => Map<String, dynamic>.from(v)).toList() ?? [];
+        
+        // 加载健康记录
+        _healthRecordsData = (data['healthRecords'] as List<dynamic>?)?.map((h) => Map<String, dynamic>.from(h)).toList() ?? [];
+        
+        print('从JSON加载用户数据: ${_userData['nickname']}, ${_petsData.length}只宠物, ${_vaccinesData.length}条疫苗, ${_healthRecordsData.length}条健康记录');
       }
     } catch (e) {
       print('加载数据失败: $e');
@@ -144,6 +150,8 @@ class DataManager {
         'lastSignIn': lastSignIn,
         'signInDays': signInDays,
         'pets': _petsData,
+        'vaccines': _vaccinesData,
+        'healthRecords': _healthRecordsData,
       };
       
       await StorageManager.saveJsonData(data);
@@ -157,6 +165,8 @@ class DataManager {
   static Future<void> _savePets() async {
     try {
       if (_petsData.isEmpty) return;
+      // 宠物数据保存在 _saveData() 中已经包含，直接调用保存
+      await _saveData();
       print('宠物数据已保存: ${_petsData.length}只');
     } catch (e) {
       print('保存宠物失败: $e');
@@ -210,6 +220,7 @@ class DataManager {
   }
   static void addVaccine(Map<String, dynamic> vaccine) {
     _vaccinesData.add(vaccine);
+    _saveData(); // 保存到持久化存储
     print('添加疫苗: ${vaccine['name']}');
   }
   
@@ -218,6 +229,7 @@ class DataManager {
   static List<Map<String, dynamic>> getHealthRecords() => _healthRecordsData;
   static void addHealthRecord(Map<String, dynamic> record) {
     _healthRecordsData.insert(0, record);
+    _saveData(); // 保存到持久化存储
     print('添加健康记录: ${record['title']}');
   }
   
