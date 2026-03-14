@@ -11,6 +11,10 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   
+  # 通知
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  
   # 状态管理
   provider: ^6.1.2
   

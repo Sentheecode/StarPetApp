@@ -14,6 +14,7 @@ import 'utils/constants.dart';
 import 'services/data_manager.dart';
 import 'services/ota_updater.dart';
 import 'services/home_data.dart';
+import 'services/notification_service.dart';
 import 'pages/theme_settings_page.dart';
 import 'pages/sign_in_page.dart';
 import 'pages/achievements_page.dart';
@@ -33,6 +34,9 @@ import 'pages/pet_detail_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化通知服务
+  await NotificationService.init();
   
   // 直接启动应用，后台加载数据
   DataManager.init();
