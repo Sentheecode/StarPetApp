@@ -956,6 +956,100 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // 宠物位置状态
+  double _petX = 0;
+  double _petY = 120;
+  int _walkingPet = 0; // 0=都不走, 1=柯基, 2=铁包银, 3=黑白
+
+  Widget _buildPetRow(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (details) {
+        // 计算点击位置，让最近的宠物走过去
+        final screenWidth = MediaQuery.of(context).size.width;
+        final tapX = details.localPosition.dx;
+        final petCenter = screenWidth / 2;
+        
+        // 判断点击在左边还是右边
+        if ((tapX - petCenter).abs() < 60) {
+          // 点击中间，不移动
+          return;
+        }
+        
+        // 设置目标位置并动画
+        setState(() {
+          if (tapX < petCenter) {
+            _petX = -80; // 向左走
+            _walkingPet = 1; // 柯基走
+          } else {
+            _petX = 80; // 向右走
+            _walkingPet = 2; // 博美走
+          }
+        });
+        
+        // 1秒后停止
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) {
+            setState(() {
+              _petX = 0;
+              _walkingPet = 0;
+            });
+          }
+        });
+      },
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 柯基
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              transform: Matrix4.translationValues(_walkingPet == 1 ? _petX : 0, 0, 0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                },
+                child: CorgiPet(
+                  size: 50,
+                  isWalking: _walkingPet == 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            // 博美（铁包银）
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              transform: Matrix4.translationValues(_walkingPet == 2 ? _petX : 0, 0, 0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                },
+                child: PomeranianPet(
+                  size: 40,
+                  isWalking: _walkingPet == 2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            // 博美（黑白）
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              transform: Matrix4.translationValues(_walkingPet == 3 ? _petX : 0, 0, 0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                },
+                child: PomeranianBWPet(
+                  size: 35,
+                  isWalking: _walkingPet == 3,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomeScene() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -984,52 +1078,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // 宠物动画 - 柯基和博美（缩小版）
-            Positioned(
-              bottom: 120,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 柯基
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
-                      },
-                      child: const CorgiPet(
-                        size: 50,
-                        isWalking: false,
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    // 博美（铁包银）
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
-                      },
-                      child: const PomeranianPet(
-                        size: 40,
-                        isWalking: false,
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    // 博美（黑白）
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
-                      },
-                      child: const PomeranianBWPet(
-                        size: 35,
-                        isWalking: false,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // 家具 - 床（长按拖动）
+            // 家具 - 床（长按拖动）- 放在宠物下面
             FurnitureItem(
               emoji: '🛏️',
               size: 50,
@@ -1052,6 +1101,13 @@ class _HomePageState extends State<HomePage> {
               initialX: 250,
               initialY: 150,
               name: '衣柜',
+            ),
+            // 宠物动画 - 柯基和博美（缩小版）- 放在最上层
+            Positioned(
+              bottom: 120,
+              left: 0,
+              right: 0,
+              child: _buildPetRow(context),
             ),
             // 地面
             Positioned(
