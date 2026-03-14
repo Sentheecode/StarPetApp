@@ -215,6 +215,39 @@ class DataManager {
   static String getLastSignIn() => _userData['lastSignIn'] as String? ?? '';
   static int getSignInDays() => _userData['signInDays'] as int? ?? 0;
   
+  // ========== 统计相关 ==========
+  static Map<String, dynamic> getStatistics() {
+    return {
+      'totalPets': _petsData.length,
+      'totalPosts': _postsData.length,
+      'totalVaccines': _vaccinesData.length,
+      'totalHealthRecords': _healthRecordsData.length,
+      'totalCoins': getCoins(),
+      'signInDays': getSignInDays(),
+      'lastSignIn': getLastSignIn(),
+      'achievements': getAchievements().where((a) => a['unlocked'] == true).length,
+      'totalAchievements': getAchievements().length,
+    };
+  }
+  
+  // 金币收支记录
+  static List<Map<String, dynamic>> _coinRecords = [];
+  
+  static void addCoinRecord(String type, int amount, String desc) {
+    _coinRecords.insert(0, {
+      'type': type,
+      'amount': amount,
+      'desc': desc,
+      'time': DateTime.now().toString().substring(0, 16),
+    });
+    // 只保留最近50条
+    if (_coinRecords.length > 50) {
+      _coinRecords = _coinRecords.sublist(0, 50);
+    }
+  }
+  
+  static List<Map<String, dynamic>> getCoinRecords() => _coinRecords;
+  
   static bool canSignIn() {
     final last = getLastSignIn();
     if (last.isEmpty) return true;
