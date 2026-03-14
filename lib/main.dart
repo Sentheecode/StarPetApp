@@ -1104,7 +1104,7 @@ class _HomePageState extends State<HomePage> {
             ),
             // 宠物动画 - 柯基和博美（缩小版）- 放在最上层
             Positioned(
-              bottom: 120,
+              bottom: 180,
               left: 0,
               right: 0,
               child: _buildPetRow(context),
@@ -1115,7 +1115,7 @@ class _HomePageState extends State<HomePage> {
               left: 0,
               right: 0,
               child: Container(
-                height: 140,
+                height: 80,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
