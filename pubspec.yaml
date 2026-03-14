@@ -1,7 +1,7 @@
 name: star_pet
 description: "星宠 - 日式像素风宠物社交App"
 publish_to: 'none'
-version: 3.9.0
+version: 4.0.0
 
 environment:
   sdk: ^3.11.1
