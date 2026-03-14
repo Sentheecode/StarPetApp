@@ -2378,6 +2378,22 @@ class _HomePageState extends State<HomePage> {
             _buildMenuItem(Icons.emoji_events, '成就徽章', '查看成就进度', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AchievementsPage()));
             }),
+            // 宠物健康相关（宠物社交、疫苗提醒、健康记录）
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text('宠物健康', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+            ),
+            _buildMenuItem(Icons.forum, '宠物社交', '分享萌宠动态', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const PetSocialPage()));
+            }),
+            _buildMenuItem(Icons.vaccines, '疫苗提醒', '疫苗接种记录', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const VaccinePage()));
+            }),
+            _buildMenuItem(Icons.medical_services, '健康记录', '体重/体检/就诊', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const HealthRecordPage()));
+            }),
+            const SizedBox(height: 12),
             _buildMenuItem(Icons.settings, '主题设置', '切换主题风格', onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const ThemeSettingsPage()));
             }),
@@ -4898,6 +4914,448 @@ class _NewServicePageState extends State<NewServicePage> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black)),
+      ),
+    );
+  }
+}
+
+// ==================== 宠物社交页面 ====================
+class PetSocialPage extends StatefulWidget {
+  const PetSocialPage({super.key});
+  @override
+  State<PetSocialPage> createState() => _PetSocialPageState();
+}
+
+class _PetSocialPageState extends State<PetSocialPage> {
+  @override
+  Widget build(BuildContext context) {
+    final posts = DataManager.getPosts();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('宠物社交', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add, color: StarPetApp.primaryColor),
+            onPressed: () => _showPostDialog(context),
+          ),
+        ],
+      ),
+      body: posts.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🐾', style: TextStyle(fontSize: 60)),
+                const SizedBox(height: 16),
+                Text('暂无动态', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Text('点击右上角发布第一条动态', style: TextStyle(color: Colors.grey[400])),
+              ],
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: posts.length,
+            itemBuilder: (ctx, i) {
+              final post = posts[i];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [StarPetApp.primaryColor, StarPetApp.secondaryColor]),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(child: Text('🐱', style: TextStyle(fontSize: 22))),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('用户${i + 1}', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text(post['time'] ?? '', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(post['content'] ?? '', style: TextStyle(fontSize: 15)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text('❤️ ${post['likes'] ?? 0}', style: TextStyle(color: Colors.grey)),
+                        const SizedBox(width: 16),
+                        Text('💬 评论', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+    );
+  }
+  
+  void _showPostDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('发布动态'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: '分享你和宠物的故事...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('取消')),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                DataManager.addPost({
+                  'content': controller.text,
+                  'time': DateTime.now().toString().substring(0, 16),
+                  'likes': 0,
+                });
+                Navigator.pop(ctx);
+                setState(() {});
+              }
+            },
+            child: Text('发布'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 疫苗提醒页面 ====================
+class VaccinePage extends StatefulWidget {
+  const VaccinePage({super.key});
+  @override
+  State<VaccinePage> createState() => _VaccinePageState();
+}
+
+class _VaccinePageState extends State<VaccinePage> {
+  @override
+  Widget build(BuildContext context) {
+    final vaccines = DataManager.getVaccines();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('疫苗提醒', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add, color: StarPetApp.primaryColor),
+            onPressed: () => _showAddDialog(context),
+          ),
+        ],
+      ),
+      body: vaccines.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('💉', style: TextStyle(fontSize: 60)),
+                const SizedBox(height: 16),
+                Text('暂无疫苗记录', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Text('点击右上角添加疫苗记录', style: TextStyle(color: Colors.grey[400])),
+              ],
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: vaccines.length,
+            itemBuilder: (ctx, i) {
+              final v = vaccines[i];
+              final isOverdue = v['isOverdue'] == true;
+              final isUpcoming = v['isUpcoming'] == true;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: isOverdue ? Border.all(color: Colors.red, width: 2) : (isUpcoming ? Border.all(color: Colors.orange, width: 2) : null),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50, height: 50,
+                      decoration: BoxDecoration(
+                        color: isOverdue ? Colors.red.withValues(alpha: 0.1) : (isUpcoming ? Colors.orange.withValues(alpha: 0.1) : Color(0xFF4CAF50).withValues(alpha: 0.1)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(child: Text('💉', style: TextStyle(fontSize: 24))),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(v['name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 4),
+                          Text(v['date'] ?? '', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isOverdue ? Colors.red : (isUpcoming ? Colors.orange : Colors.green),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isOverdue ? '已过期' : (isUpcoming ? '即将到期' : '已接种'),
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+    );
+  }
+  
+  void _showAddDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final dateController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('添加疫苗记录'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: '疫苗名称',
+                hintText: '如：狂犬疫苗',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: dateController,
+              decoration: InputDecoration(
+                labelText: '接种日期',
+                hintText: '如：2026-03-14',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('取消')),
+          TextButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty && dateController.text.isNotEmpty) {
+                DataManager.addVaccine({
+                  'name': nameController.text,
+                  'date': dateController.text,
+                });
+                Navigator.pop(ctx);
+                setState(() {});
+              }
+            },
+            child: Text('添加'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 健康记录页面 ====================
+class HealthRecordPage extends StatefulWidget {
+  const HealthRecordPage({super.key});
+  @override
+  State<HealthRecordPage> createState() => _HealthRecordPageState();
+}
+
+class _HealthRecordPageState extends State<HealthRecordPage> {
+  @override
+  Widget build(BuildContext context) {
+    final records = DataManager.getHealthRecords();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        title: const Text('健康记录', style: TextStyle(color: Colors.black)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add, color: StarPetApp.primaryColor),
+            onPressed: () => _showAddDialog(context),
+          ),
+        ],
+      ),
+      body: records.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🏥', style: TextStyle(fontSize: 60)),
+                const SizedBox(height: 16),
+                Text('暂无健康记录', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Text('点击右上角添加健康记录', style: TextStyle(color: Colors.grey[400])),
+              ],
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: records.length,
+            itemBuilder: (ctx, i) {
+              final r = records[i];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(_getEmoji(r['type']), style: TextStyle(fontSize: 24)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(r['title'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                        Text(r['date'] ?? '', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                    if (r['detail'] != null && r['detail'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(r['detail'].toString(), style: TextStyle(color: Colors.grey[600])),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+    );
+  }
+  
+  String _getEmoji(String? type) {
+    switch (type) {
+      case 'weight': return '⚖️';
+      case 'checkup': return '🏥';
+      case 'medicine': return '💊';
+      case 'illness': return '🤒';
+      case 'beauty': return '✂️';
+      default: return '📋';
+    }
+  }
+  
+  void _showAddDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final detailController = TextEditingController();
+    String selectedType = 'checkup';
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('添加健康记录'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('类型', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildChip('⚖️', 'weight', selectedType, (t) => setDialogState(() => selectedType = t)),
+                    _buildChip('🏥', 'checkup', selectedType, (t) => setDialogState(() => selectedType = t)),
+                    _buildChip('💊', 'medicine', selectedType, (t) => setDialogState(() => selectedType = t)),
+                    _buildChip('🤒', 'illness', selectedType, (t) => setDialogState(() => selectedType = t)),
+                    _buildChip('✂️', 'beauty', selectedType, (t) => setDialogState(() => selectedType = t)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: '标题',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: detailController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: '详情',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('取消')),
+            TextButton(
+              onPressed: () {
+                if (titleController.text.isNotEmpty) {
+                  DataManager.addHealthRecord({
+                    'type': selectedType,
+                    'title': titleController.text,
+                    'detail': detailController.text,
+                    'date': DateTime.now().toString().substring(0, 10),
+                  });
+                  Navigator.pop(ctx);
+                  setState(() {});
+                }
+              },
+              child: Text('添加'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildChip(String emoji, String type, String selected, Function(String) onTap) {
+    final isSelected = selected == type;
+    return GestureDetector(
+      onTap: () => onTap(type),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Color(0xFF2196F3) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text('$emoji', style: TextStyle(fontSize: 18)),
       ),
     );
   }
