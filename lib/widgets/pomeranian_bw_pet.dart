@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-// ==================== 博美宠物动画 ====================
-class PomeranianPet extends StatefulWidget {
+// ==================== 黑白博美宠物动画 ====================
+class PomeranianBWPet extends StatefulWidget {
   final double size;
   final bool isWalking;
   
-  const PomeranianPet({
+  const PomeranianBWPet({
     super.key,
     this.size = 80,
     this.isWalking = false,
   });
 
   @override
-  State<PomeranianPet> createState() => _PomeranianPetState();
+  State<PomeranianBWPet> createState() => _PomeranianBWPetState();
 }
 
-class _PomeranianPetState extends State<PomeranianPet> with TickerProviderStateMixin {
+class _PomeranianBWPetState extends State<PomeranianBWPet> with TickerProviderStateMixin {
   late AnimationController _controller;
   
   @override
@@ -28,7 +28,7 @@ class _PomeranianPetState extends State<PomeranianPet> with TickerProviderStateM
   }
   
   @override
-  void didUpdateWidget(PomeranianPet oldWidget) {
+  void didUpdateWidget(PomeranianBWPet oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isWalking != widget.isWalking) {
       _controller.duration = Duration(milliseconds: widget.isWalking ? 600 : 1200);
@@ -48,9 +48,9 @@ class _PomeranianPetState extends State<PomeranianPet> with TickerProviderStateM
       animation: _controller,
       builder: (context, child) {
         final frameIndex = (_controller.value * 4).floor() % 4;
-        final folder = widget.isWalking ? 'pomeranian_walk' : 'pomeranian_idle';
+        final folder = widget.isWalking ? 'pomeranian_bw_walk' : 'pomeranian_bw_idle';
         return Transform.scale(
-          scaleX: -1,
+          scaleX: -1, // 镜像翻转，与柯基方向一致
           child: Image.asset(
             'assets/images/$folder/frame$frameIndex.png',
             width: widget.size,

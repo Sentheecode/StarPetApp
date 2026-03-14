@@ -17,6 +17,7 @@ import 'services/home_data.dart';
 import 'services/notification_service.dart';
 import 'widgets/corgi_pet.dart';
 import 'widgets/pomeranian_pet.dart';
+import 'widgets/pomeranian_bw_pet.dart';
 import 'pages/pet_showcase_page.dart';
 import 'pages/theme_settings_page.dart';
 import 'pages/sign_in_page.dart';
@@ -1002,13 +1003,24 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(width: 20),
-                    // 博美
+                    // 博美（铁包银）
                     GestureDetector(
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
                       },
                       child: const PomeranianPet(
                         size: 60,
+                        isWalking: false,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    // 博美（黑白）
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PetShowcasePage()));
+                      },
+                      child: const PomeranianBWPet(
+                        size: 50,
                         isWalking: false,
                       ),
                     ),
